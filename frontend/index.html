@@ -304,6 +304,8 @@
         },
         mlState: 'idle',              // 'idle' | 'generating' | 'done' | 'error'
         mlResult: null,               // MLLabResponse
+        mlUploadState: 'idle',        // 'idle' | 'uploading' | 'ready' | 'error'
+        mlUpload: null,               // upload response (same shape as dmUpload)
 
         // ── Theme & language ──────────────────────────────────────────────
         darkMode: false,
@@ -634,6 +636,25 @@
           } catch (e) {
             this.dmProfileState = 'error';
             this.dmProfile = null;
+          }
+        },
+
+        // ── ML Lab file upload ────────────────────────────────────────────
+        async mlUploadFile(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          this.mlUploadState = 'uploading';
+          this.mlUpload = null;
+          this.mlSettings.upload_run_id = '';
+          try {
+            const { uploadDataset } = await import('./js/api.js');
+            const res = await uploadDataset(file);
+            this.mlUpload = res;
+            this.mlSettings.upload_run_id = res.run_id;
+            this.mlUploadState = 'ready';
+          } catch (e) {
+            this.mlUploadState = 'error';
+            this.errorMsg = e.message || 'Upload failed.';
           }
         },
 
@@ -1409,12 +1430,29 @@
                           :placeholder="i18n[lang].ml_query_placeholder"></textarea>
               </div>
 
-              <!-- Upload source: run ID input -->
-              <div x-show="mlSource === 'upload'">
-                <label class="block text-xs font-medium mb-1" x-text="i18n[lang].ml_upload_run_label"
-                       style="color: var(--ds-ink-muted)"></label>
-                <input x-model="mlSettings.upload_run_id" class="ds-input w-full text-xs"
-                       :placeholder="i18n[lang].ml_upload_run_help" />
+              <!-- Upload source: file picker (same pattern as Data Mode) -->
+              <div x-show="mlSource === 'upload'" class="space-y-3">
+                <label for="ml-file-upload"
+                       class="upload-zone flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl p-6 cursor-pointer transition-all duration-200"
+                       style="border-color: var(--ds-border);">
+                  <svg class="w-8 h-8" style="color: var(--ds-ink-muted);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                  </svg>
+                  <p class="text-sm font-medium text-center" style="color: var(--ds-ink)"
+                     x-text="mlUploadState === 'uploading' ? i18n[lang].dm_uploading : (mlUpload ? mlUpload.filename : i18n[lang].upload_hint)"></p>
+                  <p class="text-xs" style="color: var(--ds-ink-muted)">CSV only · Max <span x-text="config.max_upload_mb || 10"></span> MB</p>
+                  <input type="file" id="ml-file-upload" accept=".csv"
+                         @change="mlUploadFile($event)" class="sr-only" />
+                </label>
+                <!-- File info after upload -->
+                <div x-show="mlUpload && mlUploadState === 'ready'"
+                     class="flex flex-wrap gap-3 text-xs px-1" style="color: var(--ds-ink-muted)">
+                  <span>📄 <strong x-text="mlUpload && mlUpload.filename"></strong></span>
+                  <span x-text="mlUpload && mlUpload.n_rows + ' rows'"></span>
+                  <span x-text="mlUpload && mlUpload.n_cols + ' columns'"></span>
+                </div>
+                <div x-show="mlUploadState === 'error'" class="text-xs px-1" style="color: #dc2626"
+                     x-text="errorMsg"></div>
               </div>
 
               <!-- ML Settings -->
@@ -1472,7 +1510,7 @@
 
               <!-- Generate button -->
               <button @click="mlGenerate()"
-                      :disabled="mlState === 'generating'"
+                      :disabled="mlState === 'generating' || (mlSource === 'upload' && mlUploadState !== 'ready')"
                       class="ds-btn-primary w-full py-2 rounded-lg text-sm font-medium"
                       :class="lang === 'ur' ? 'font-nastaliq' : ''"
                       x-text="mlState === 'generating' ? i18n[lang].ml_generating : i18n[lang].ml_generate_btn">
