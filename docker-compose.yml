@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  hackdata-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hackdata_v2_app
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - GROQ_API_KEYS=${GROQ_API_KEYS:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - JEV_API_KEY=${JEV_API_KEY:-}
+    volumes:
+      - hackdata_artifacts:/app/Artifacts
+      - hackdata_logs:/app/logs
+      - hackdata_cache:/app/cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  hackdata_artifacts:
+  hackdata_logs:
+  hackdata_cache:

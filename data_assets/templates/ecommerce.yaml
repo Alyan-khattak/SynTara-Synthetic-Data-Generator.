@@ -1,0 +1,27 @@
+tables:
+  - name: orders
+    row_count: 500
+    columns:
+      - name: order_id
+        type: pk
+      - name: customer_id
+        type: integer
+        min: 1
+        max: 1000
+      - name: product_name
+        type: categorical
+        pool: ["Laptop", "Phone", "Tablet", "Headphones", "Watch", "Camera"]
+      - name: category
+        type: categorical
+        pool: ["Electronics", "Accessories", "Computing"]
+      - name: amount
+        type: money
+        min: 1000
+        max: 200000
+      - name: order_date
+        type: date
+        min: "2023-01-01"
+        max: "2024-12-31"
+      - name: status
+        type: categorical
+        pool: ["pending", "shipped", "delivered", "cancelled"]

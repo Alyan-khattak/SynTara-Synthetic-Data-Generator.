@@ -1,0 +1,409 @@
+{
+  "$defs": {
+    "Cardinality": {
+      "additionalProperties": false,
+      "description": "Child-rows-per-parent distribution for a relational table.\n\nDRY RUN:\n    min_per_parent=2, max_per_parent=5, distribution=\"uniform\"\n    \u2192 each parent gets between 2 and 5 children, drawn uniformly",
+      "properties": {
+        "min_per_parent": {
+          "title": "Min Per Parent",
+          "type": "integer"
+        },
+        "max_per_parent": {
+          "title": "Max Per Parent",
+          "type": "integer"
+        },
+        "distribution": {
+          "default": "uniform",
+          "title": "Distribution",
+          "type": "string"
+        }
+      },
+      "required": [
+        "min_per_parent",
+        "max_per_parent"
+      ],
+      "title": "Cardinality",
+      "type": "object"
+    },
+    "ColumnSpec": {
+      "additionalProperties": false,
+      "description": "Spec for a single generated column.\n\nColumnSpec  \u2500\u2500\u25b6  DataGenerator  \u2500\u2500\u25b6  column values in DataFrame\n\nOnly `name` and `gen` are required; everything else is an optional\nmodifier consumed by the matching generator in column_generators.py.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "gen": {
+          "title": "Gen",
+          "type": "string"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Values"
+        },
+        "dist": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dist"
+        },
+        "rules": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Rules",
+          "type": "array"
+        },
+        "expr": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expr"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        },
+        "null_rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Null Rate"
+        },
+        "outlier_rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outlier Rate"
+        },
+        "noise_scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Noise Scale"
+        },
+        "faker_field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Faker Field"
+        },
+        "conditioned_by": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ConditionSegment"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conditioned By"
+        },
+        "seasonality": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SeasonalityPeriod"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seasonality"
+        }
+      },
+      "required": [
+        "name",
+        "gen"
+      ],
+      "title": "ColumnSpec",
+      "type": "object"
+    },
+    "ConditionSegment": {
+      "additionalProperties": false,
+      "description": "One segment inside a conditioned_by block.\n\nwhen      \u2192 filter expression evaluated via simpleeval (never eval)\noverrides \u2192 ColumnSpec fields to apply for rows matching `when`\n\nDRY RUN:\n    when=\"category == 'A'\", overrides={\"min\": 100, \"max\": 500}\n    \u2192 rows where category is A get amount drawn from [100, 500]",
+      "properties": {
+        "when": {
+          "title": "When",
+          "type": "string"
+        },
+        "overrides": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Overrides",
+          "type": "object"
+        }
+      },
+      "required": [
+        "when"
+      ],
+      "title": "ConditionSegment",
+      "type": "object"
+    },
+    "DocumentSpec": {
+      "additionalProperties": false,
+      "description": "Spec for a documents-module run (invoices, statements).",
+      "properties": {
+        "doc_type": {
+          "title": "Doc Type",
+          "type": "string"
+        },
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "doc_type",
+        "count"
+      ],
+      "title": "DocumentSpec",
+      "type": "object"
+    },
+    "EdgeCase": {
+      "additionalProperties": false,
+      "description": "A defect type and injection rate, used by DatasetCorruptor for demo / tests.\n\nkind must be one of VAL_DEFECT_KINDS so the validator can route it.\nrate is the fraction of rows to affect (0.0 \u2013 1.0).",
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "rate": {
+          "title": "Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "rate"
+      ],
+      "title": "EdgeCase",
+      "type": "object"
+    },
+    "ParentSpec": {
+      "additionalProperties": false,
+      "description": "FK relationship declaration: parent table, the key column, and cardinality bounds.",
+      "properties": {
+        "table": {
+          "title": "Table",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "cardinality": {
+          "$ref": "#/$defs/Cardinality"
+        }
+      },
+      "required": [
+        "table",
+        "key",
+        "cardinality"
+      ],
+      "title": "ParentSpec",
+      "type": "object"
+    },
+    "SeasonalityPeriod": {
+      "additionalProperties": false,
+      "description": "One period in a seasonality weight profile (AR 8.12).\n\nstart / end  \u2192 \"MM-DD\" strings; engine normalises weights to sum 1.0\nweight       \u2192 relative weight for date draws in this window",
+      "properties": {
+        "start": {
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "title": "End",
+          "type": "string"
+        },
+        "weight": {
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "weight"
+      ],
+      "title": "SeasonalityPeriod",
+      "type": "object"
+    },
+    "TableSpec": {
+      "additionalProperties": false,
+      "description": "Spec for one table: name, target row count, columns, and optional FK / edge-case info.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "n_rows": {
+          "title": "N Rows",
+          "type": "integer"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/ColumnSpec"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParentSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edge_cases": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EdgeCase"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Cases"
+        }
+      },
+      "required": [
+        "name",
+        "n_rows",
+        "columns"
+      ],
+      "title": "TableSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level spec: the frozen contract between LLM/user and the engine.\n\nversion       \u2192 default SPEC_VERSION; checked during repair to detect schema drift\nmodule        \u2192 one of MODULE_TABULAR / MODULE_RELATIONAL / MODULE_DOCUMENTS\ntables        \u2192 list of table specs (empty list for documents-only runs)\ndocument_spec \u2192 required when module == MODULE_DOCUMENTS\n\nDRY RUN:\n    {\"version\": \"1\", \"module\": \"tabular\",\n     \"tables\": [{\"name\": \"orders\", \"n_rows\": 1000,\n                 \"columns\": [{\"name\": \"id\", \"gen\": \"sequence\"},\n                             {\"name\": \"amount\", \"gen\": \"money\",\n                              \"min\": 100, \"max\": 50000, \"rules\": [\"not_null\"]}]}]}\n    \u2500\u2500\u25b6 Spec(version=\"1\", module=\"tabular\", tables=[TableSpec(name=\"orders\", ...)])",
+  "properties": {
+    "version": {
+      "default": "1",
+      "title": "Version",
+      "type": "string"
+    },
+    "module": {
+      "title": "Module",
+      "type": "string"
+    },
+    "tables": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TableSpec"
+      },
+      "title": "Tables",
+      "type": "array"
+    },
+    "document_spec": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DocumentSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "module"
+  ],
+  "title": "Spec",
+  "type": "object"
+}

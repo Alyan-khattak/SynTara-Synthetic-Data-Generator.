@@ -1,0 +1,9 @@
+The following JSON is malformed. Fix it and return ONLY the corrected valid JSON object.
+
+Broken JSON:
+{broken_json}
+
+Error:
+{error}
+
+Return ONLY the fixed JSON. No explanation, no markdown.

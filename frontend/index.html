@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<!-- SynTara SPA — Alpine.js v3 + Tailwind (CDN). All API calls via api.js. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SynTara — Synthetic Data Platform</title>
+
+  <!-- Forge Narrative + Nocturne Ledger fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Enable dark mode via class strategy (must be set after CDN loads) -->
+  <script>tailwind.config = { darkMode: 'class' }</script>
+
+  <style>
+    /* ── Forge Narrative System (light) + Nocturne Ledger (dark) ── */
+    :root {
+      --ds-canvas:          #FAF7F2;
+      --ds-surface:         #FFFFFF;
+      --ds-ink:             #1F2A2E;
+      --ds-ink-muted:       #6B7B82;
+      --ds-primary:         #7FA08F;
+      --ds-primary-hover:   #6A8F7E;
+      --ds-border:          #E6E1D8;
+      --ds-sidebar-bg:      #1F2A2E;
+      --ds-sidebar-active:  #7FA08F;
+      --ds-sidebar-text:    #94A9B0;
+      --ds-sidebar-text-on: #FFFFFF;
+      --ds-ring:            rgba(127,160,143,0.4);
+      color-scheme: light;
+    }
+    .dark {
+      --ds-canvas:          #16191A;
+      --ds-surface:         #1F2426;
+      --ds-ink:             #E9E4DA;
+      --ds-ink-muted:       #7A8E97;
+      --ds-primary:         #8FB5A2;
+      --ds-primary-hover:   #A0C5B2;
+      --ds-border:          #343C3E;
+      --ds-sidebar-bg:      #0C0F10;
+      --ds-sidebar-active:  #8FB5A2;
+      --ds-sidebar-text:    #5E7880;
+      --ds-sidebar-text-on: #E9E4DA;
+      --ds-ring:            rgba(143,181,162,0.4);
+      color-scheme: dark;
+    }
+
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--ds-canvas); color: var(--ds-ink); }
+    .font-nastaliq { font-family: 'Noto Nastaliq Urdu', serif; line-height: 2; }
+    [x-cloak] { display: none !important; }
+
+    /* ── App-page component classes ── */
+    .ds-card   { background: var(--ds-surface); border: 1px solid var(--ds-border); border-radius: 12px; }
+    .ds-heading { font-family: 'Newsreader', Georgia, serif; }
+    .ds-mono   { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+    .ds-input {
+      background: var(--ds-surface); border: 1px solid var(--ds-border);
+      border-radius: 8px; color: var(--ds-ink); width: 100%;
+      padding: 8px 12px; font-size: 0.875rem; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .ds-input::placeholder { color: var(--ds-ink-muted); }
+    .ds-input:focus { outline: none; border-color: var(--ds-primary); box-shadow: 0 0 0 3px var(--ds-ring); }
+
+    .ds-btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--ds-primary); color: #fff; font-weight: 600; font-size: 0.875rem;
+      padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+      transition: background 0.15s; white-space: nowrap;
+    }
+    .ds-btn-primary:hover:not(:disabled) { background: var(--ds-primary-hover); }
+    .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .ds-btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: transparent; border: 1px solid var(--ds-border); color: var(--ds-ink);
+      font-size: 0.875rem; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .ds-btn-ghost:hover { background: var(--ds-border); }
+
+    .ds-btn-small {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.75rem; font-weight: 600; padding: 5px 10px; border-radius: 6px;
+      border: none; cursor: pointer; transition: opacity 0.15s;
+      color: #fff;
+    }
+    .ds-btn-small:hover { opacity: 0.88; }
+
+    /* ── Sidebar ── */
+    .ds-sidebar { background: var(--ds-sidebar-bg); }
+    .ds-nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 16px; font-size: 0.875rem; font-weight: 500;
+      color: var(--ds-sidebar-text);
+      border-left: 3px solid transparent;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+      text-align: left; white-space: nowrap; width: 100%;
+      background: transparent; border-top: none; border-right: none; border-bottom: none;
+      cursor: pointer;
+    }
+    .ds-nav-item:hover { color: var(--ds-sidebar-text-on); background: rgba(255,255,255,0.06); }
+    .ds-nav-item.ds-active {
+      color: var(--ds-sidebar-text-on);
+      border-left-color: var(--ds-sidebar-active);
+      background: rgba(255,255,255,0.09);
+    }
+
+    /* ── Score rings ── */
+    .score-ring-track { stroke: var(--ds-border); }
+    .score-ring-fill  { stroke-linecap: round; transition: stroke-dasharray 0.8s cubic-bezier(.4,0,.2,1); }
+
+    /* ── Landing card fade-in (landing page unchanged) ── */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+    .card-enter { opacity: 0; animation: fadeUp 0.5s ease forwards; }
+    .card-enter:nth-child(1) { animation-delay: 0.10s; }
+    .card-enter:nth-child(2) { animation-delay: 0.20s; }
+    .card-enter:nth-child(3) { animation-delay: 0.30s; }
+    .card-enter:nth-child(4) { animation-delay: 0.40s; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--ds-border); border-radius: 3px; }
+
+    /* ── Module badges ── */
+    .mod-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+    .mod-tabular    { background: rgba(127,160,143,0.15); color: #4A7A6A; }
+    .mod-relational { background: rgba(100,140,180,0.15); color: #3A5A8A; }
+    .mod-documents  { background: rgba(180,100,80,0.15);  color: #7A3A2A; }
+    .mod-data_mode  { background: rgba(80,140,120,0.15);  color: #2A6A5A; }
+    .dark .mod-tabular    { background: rgba(143,181,162,0.18); color: #8FB5A2; }
+    .dark .mod-relational { background: rgba(100,160,200,0.18); color: #80B0D0; }
+    .dark .mod-documents  { background: rgba(220,130,110,0.18); color: #D8907A; }
+    .dark .mod-data_mode  { background: rgba(100,180,150,0.18); color: #8FB5A2; }
+
+    /* ── Section card ── */
+    .section-card { transition: box-shadow 0.2s ease; }
+    .section-card:hover { box-shadow: 0 4px 24px -4px rgba(127,160,143,0.12); }
+    .run-row { transition: background 0.12s ease; }
+
+    /* ── Section title accent bar ── */
+    .section-title::before {
+      content: ''; display: inline-block;
+      width: 3px; height: 14px;
+      background: var(--ds-primary);
+      border-radius: 2px; margin-right: 8px; vertical-align: middle;
+    }
+
+    /* Upload zone */
+    .upload-zone:hover { border-color: var(--ds-primary) !important; }
+
+    /* ── Forge-style sidebar extras ── */
+    .ds-workspace-header {
+      padding: 16px 16px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+    .ds-workspace-name {
+      font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.92);
+      letter-spacing: -0.01em; line-height: 1.2;
+    }
+    .ds-workspace-badge {
+      display: inline-block; margin-top: 5px;
+      font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 500;
+      color: var(--ds-sidebar-active); letter-spacing: 0.04em;
+      padding: 2px 7px; border-radius: 3px;
+      background: rgba(143,181,162,0.14); border: 1px solid rgba(143,181,162,0.22);
+    }
+    .ds-stage-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+      color: rgba(255,255,255,0.25); padding: 14px 16px 5px;
+    }
+    .ds-step-num {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500;
+      opacity: 0.38; min-width: 22px; flex-shrink: 0; letter-spacing: 0.02em;
+    }
+    .ds-nav-item.ds-active .ds-step-num { opacity: 0.75; }
+    .ds-util-section {
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding: 8px 0; margin-top: auto;
+    }
+    .ds-util-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 16px; font-size: 12px; font-weight: 500;
+      color: rgba(255,255,255,0.25);
+      background: transparent; border: none; cursor: default; width: 100%; text-align: left;
+      transition: color 0.15s;
+    }
+    .ds-util-item:hover { color: rgba(255,255,255,0.45); }
+
+    /* ── Context bar + page heading ── */
+    .ds-context-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 0 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--ds-ink-muted);
+    }
+    .ds-context-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--ds-primary); flex-shrink: 0; }
+    .ds-page-title {
+      font-family: 'Newsreader', Georgia, serif;
+      font-size: 2.25rem; font-weight: 600; line-height: 1.2;
+      color: var(--ds-ink); margin: 4px 0 4px;
+      text-wrap: balance;
+    }
+    .ds-page-sub { font-size: 0.8125rem; color: var(--ds-ink-muted); margin-bottom: 18px; }
+
+    /* ── Bottom action bar ── */
+    .ds-bottom-bar {
+      position: sticky; bottom: 0; margin: 16px -24px -24px; padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--ds-surface); border-top: 1px solid var(--ds-border);
+      z-index: 10;
+    }
+    .ds-step-info {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      color: var(--ds-ink-muted); letter-spacing: 0.03em; display: flex; align-items: center; gap: 6px;
+    }
+    .ds-step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ds-primary); }
+
+    /* Hero text — crisp over video in both modes */
+    .hero-shadow   { text-shadow: 0 2px 16px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.4); }
+    .hero-sub      { text-shadow: 0 1px 8px rgba(0,0,0,0.5); }
+    .hero-card     { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .hero-card:hover { background: rgba(255,255,255,0.16); }
+
+    /* Table divider */
+    .ds-divide tr + tr td { border-top: 1px solid var(--ds-border); }
+    .ds-th { color: var(--ds-ink-muted); border-bottom: 1px solid var(--ds-border); }
+    .ds-td { color: var(--ds-ink); }
+    tr.ds-row:hover td { background: rgba(127,160,143,0.05); }
+  </style>
+
+  <!-- Alpine state factory — must be defined before Alpine boots -->
+  <script type="module">
+    import { getConfig, generateData, getRunScores, listRuns, saveRun, downloadExport, uploadDataset, regenerateData, downloadTableCsv, getRunSchema } from './js/api.js';
+    import { STRINGS } from './js/strings.js';
+
+    // IMP: window.appState() is called by Alpine's x-data once the DOM is ready.
+    window.appState = function () {
+      return {
+        // ── Config (overwritten by GET /api/config on init) ──────────────
+        config: {
+          max_rows: 100000,
+          modules: ['tabular', 'relational', 'documents'],
+          score_weights: {},
+          generators: [],
+        },
+
+        // ── Page / navigation ────────────────────────────────────────────
+        // 'landing' shows the hero; 'app' shows the generator UI.
+        page: 'landing',
+
+        currentModule: 'tabular',
+        currentMode: 'query',       // 'query' | 'upload'
+
+        // ── Form ─────────────────────────────────────────────────────────
+        formData: {
+          query:    '',
+          n_rows:   1000,
+          seed:     '',
+          locale:   'en_PK',
+          currency: 'PKR',
+          privacy:  false,
+        },
+
+        // ── Run state ────────────────────────────────────────────────────
+        runState: 'idle',           // 'idle' | 'loading' | 'done' | 'error'
+        errorMsg: '',
+        currentRun: null,
+        scores: null,
+        scoresPollTimer: null,
+        activePreviewTable: null,
+        previewPage: 0,
+        regenLoading: false,
+        runs: [],
+        S: STRINGS,
+
+        // ── Schema tab (Step A) ──────────────────────────────────────────
+        activeResultTab: 'preview',   // 'preview' | 'schema'
+        schemaState: 'idle',          // 'idle' | 'loading' | 'done' | 'error' | 'na'
+        schemaMermaid: '',
+        schemaError: '',
+
+        // ── Theme & language ──────────────────────────────────────────────
+        darkMode: false,
+        lang: 'en',                 // 'en' | 'ur'
+
+        // ── i18n object: all static UI strings in English and Urdu ───────
+        i18n: {
+          en: {
+            tagline: 'Synthetic Data Platform',
+            nav_tabular: 'Tabular', nav_relational: 'Relational',
+            nav_documents: 'Documents', nav_datamode: 'Data Mode',
+            generate_btn: 'Generate', upload_btn: 'Upload CSV',
+            query_placeholder: 'Describe the data you want to generate...',
+            rows_label: 'Rows', seed_label: 'Seed (optional)',
+            locale_label: 'Locale', privacy_label: 'Privacy masking',
+            preview_title: 'Preview', download_csv: 'Download CSV',
+            download_json: 'Download JSON', download_pdf: 'Download PDF',
+            new_variation: '↻ New Variation',
+            scores_title: 'Quality Scores',
+            validity: 'Validity', fidelity: 'Fidelity',
+            utility: 'Utility', privacy: 'Privacy', overall: 'Overall',
+            upload_title: 'Upload CSV', upload_hint: 'Drag & drop or click to upload',
+            generating: 'Generating…', scoring: 'Scoring…',
+            error_title: 'Error', save_run: 'Save Run',
+            run_history: 'Run History', configuration: 'Configuration',
+            no_preview: 'Run a query to see a preview.',
+            no_runs: 'No saved runs.',
+            showing_rows: 'showing up to 50 rows — download CSV/JSON for full dataset',
+            query_mode_scores: 'Scoring is disabled in Query Mode. Use Data Mode (CSV Upload) to evaluate data fidelity and utility.',
+            back: '← Back', get_started: 'Get Started',
+            landing_headline: 'Generate Realistic Synthetic Data',
+            landing_sub: 'Tabular · Relational · Documents · Privacy-Safe',
+          },
+          ur: {
+            tagline: 'مصنوعی ڈیٹا پلیٹ فارم',
+            nav_tabular: 'ٹیبلر', nav_relational: 'ریلیشنل',
+            nav_documents: 'دستاویزات', nav_datamode: 'ڈیٹا موڈ',
+            generate_btn: 'بنائیں', upload_btn: 'CSV اپلوڈ کریں',
+            query_placeholder: 'جو ڈیٹا چاہیے اسے بیان کریں...',
+            rows_label: 'قطاریں', seed_label: 'سیڈ (اختیاری)',
+            locale_label: 'لوکیل', privacy_label: 'پرائیویسی ماسکنگ',
+            preview_title: 'پیش نظارہ', download_csv: 'CSV ڈاؤنلوڈ',
+            download_json: 'JSON ڈاؤنلوڈ', download_pdf: 'PDF ڈاؤنلوڈ',
+            new_variation: '↻ نئی قسم',
+            scores_title: 'معیار کے نمبر',
+            validity: 'درستگی', fidelity: 'وفاداری',
+            utility: 'افادیت', privacy: 'رازداری', overall: 'مجموعی',
+            upload_title: 'CSV اپلوڈ کریں', upload_hint: 'گھسیٹیں یا کلک کریں',
+            generating: 'بن رہا ہے…', scoring: 'اسکور ہو رہا ہے…',
+            error_title: 'خرابی', save_run: 'رن محفوظ کریں',
+            run_history: 'رن تاریخ', configuration: 'ترتیب',
+            no_preview: 'پیش نظارے کے لیے کوئی سوال چلائیں۔',
+            no_runs: 'کوئی محفوظ رن نہیں۔',
+            showing_rows: 'زیادہ سے زیادہ ۵۰ قطاریں — مکمل ڈیٹا کے لیے CSV/JSON ڈاؤنلوڈ کریں',
+            query_mode_scores: 'کوئری موڈ میں اسکورنگ بند ہے۔ ڈیٹا موڈ (CSV اپلوڈ) استعمال کریں۔',
+            back: '← واپس', get_started: 'شروع کریں',
+            landing_headline: 'حقیقت پسندانہ مصنوعی ڈیٹا بنائیں',
+            landing_sub: 'ٹیبلر · ریلیشنل · دستاویزات · پرائیویسی محفوظ',
+          },
+        },
+
+        // ── Init: restore theme/lang/visited, load config + runs ─────────
+        async init() {
+          // Restore dark mode
+          if (localStorage.getItem('hd_theme') === 'dark') {
+            this.darkMode = true;
+            document.documentElement.classList.add('dark');
+          }
+          // Restore language
+          if (localStorage.getItem('hd_lang') === 'ur') {
+            this.lang = 'ur';
+            document.body.setAttribute('dir', 'rtl');
+          }
+          // Skip landing page on return visits
+          if (localStorage.getItem('hd_visited')) {
+            this.page = 'app';
+          }
+
+          try { this.config = await getConfig(); } catch (e) { console.warn('Config not available:', e.message); }
+          try { this.runs = (await listRuns()).runs || []; } catch (_) {}
+        },
+
+        // ── Theme toggle ──────────────────────────────────────────────────
+        toggleDark() {
+          this.darkMode = !this.darkMode;
+          document.documentElement.classList.toggle('dark', this.darkMode);
+          localStorage.setItem('hd_theme', this.darkMode ? 'dark' : 'light');
+        },
+
+        // ── Language toggle ───────────────────────────────────────────────
+        toggleLang() {
+          this.lang = this.lang === 'en' ? 'ur' : 'en';
+          if (this.lang === 'ur') document.body.setAttribute('dir', 'rtl');
+          else document.body.removeAttribute('dir');
+          localStorage.setItem('hd_lang', this.lang);
+        },
+
+        // ── Navigate to app (saves visited flag) ──────────────────────────
+        goToApp() {
+          this.page = 'app';
+          localStorage.setItem('hd_visited', '1');
+        },
+
+        // ── Module selection ──────────────────────────────────────────────
+        selectModule(mod) {
+          this.currentModule = mod;
+          this.runState = 'idle';
+          this.currentRun = null;
+          this.scores = null;
+          this.activePreviewTable = null;
+          this.previewPage = 0;
+          this.activeResultTab = 'preview';
+          this.schemaState = 'idle';
+          this.schemaMermaid = '';
+          this.schemaError = '';
+          if (this.scoresPollTimer) { clearInterval(this.scoresPollTimer); this.scoresPollTimer = null; }
+        },
+
+        // ── Generate ──────────────────────────────────────────────────────
+        async generate() {
+          if (!this.formData.query.trim()) return;
+          this.runState = 'loading'; this.errorMsg = ''; this.currentRun = null; this.scores = null; this.activePreviewTable = null; this.previewPage = 0;
+          if (this.scoresPollTimer) { clearInterval(this.scoresPollTimer); this.scoresPollTimer = null; }
+          try {
+            const params = {
+              module:   this.currentModule,
+              mode:     this.currentMode,
+              query:    this.formData.query,
+              n_rows:   parseInt(this.formData.n_rows) || 1000,
+              seed:     this.formData.seed ? parseInt(this.formData.seed) : null,
+              locale:   this.formData.locale,
+              currency: this.formData.currency,
+              privacy:  this.formData.privacy,
+            };
+            this.currentRun = await generateData(params);
+            this.runState = 'done';
+            this.activeResultTab = 'preview';
+            this.schemaState = 'idle';
+            this.schemaMermaid = '';
+            this.pollScores(this.currentRun.run_id);
+            try { this.runs = (await listRuns()).runs || []; } catch (_) {}
+          } catch (e) {
+            this.runState = 'error';
+            this.errorMsg = e.message || STRINGS.error.generate;
+          }
+        },
+
+        // ── Upload (Data Mode) ────────────────────────────────────────────
+        async uploadFile(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          this.runState = 'loading'; this.errorMsg = ''; this.currentRun = null; this.scores = null; this.activePreviewTable = null; this.previewPage = 0;
+          if (this.scoresPollTimer) { clearInterval(this.scoresPollTimer); this.scoresPollTimer = null; }
+          try {
+            const res = await uploadDataset(file);
+            this.currentRun = {
+              run_id:  res.run_id,
+              preview: res.preview || { synthetic_data: [] },
+            };
+            this.runState = 'done';
+            // FIX 4: fetch scores via the canonical scores endpoint
+            this.pollScores(res.run_id);
+            try { this.runs = (await listRuns()).runs || []; } catch (_) {}
+          } catch (e) {
+            this.runState = 'error';
+            this.errorMsg = e.message || 'Failed to upload and generate data.';
+          }
+        },
+
+        // ── Regenerate (Data Mode) ────────────────────────────────────────
+        async regenerate() {
+          if (!this.currentRun || this.regenLoading) return;
+          this.regenLoading = true;
+          this.scores = null;
+          if (this.scoresPollTimer) { clearInterval(this.scoresPollTimer); this.scoresPollTimer = null; }
+          try {
+            const res = await regenerateData(this.currentRun.run_id);
+            this.currentRun = {
+              run_id:  res.run_id,
+              preview: res.preview || { synthetic_data: [] },
+            };
+            this.pollScores(res.run_id);
+            try { this.runs = (await listRuns()).runs || []; } catch (_) {}
+          } catch (e) {
+            this.errorMsg = e.message || 'Regeneration failed.';
+          } finally {
+            this.regenLoading = false;
+          }
+        },
+
+        // ── Poll scores every 2 s until terminal state ────────────────────
+        pollScores(runId) {
+          this.scoresPollTimer = setInterval(async () => {
+            try {
+              const s = await getRunScores(runId);
+              this.scores = s;
+              // stop polling when terminal state: done, failed, or parked (query mode)
+              if (s.scores_status === 'done' || s.scores_status === 'failed' || s.scores_status === 'parked') {
+                clearInterval(this.scoresPollTimer); this.scoresPollTimer = null;
+              }
+            } catch (_) {}
+          }, 2000);
+        },
+
+        // ── Save run ──────────────────────────────────────────────────────
+        async save() {
+          if (!this.currentRun) return;
+          try { await saveRun(this.currentRun.run_id); this.runs = (await listRuns()).runs || []; }
+          catch (e) { this.errorMsg = e.message; }
+        },
+
+        // ── Download ──────────────────────────────────────────────────────
+        download(runId, fmt) { downloadExport(runId, fmt); },
+
+        // ── Per-table CSV download (Step B) ──────────────────────────────
+        downloadTable(runId, tableName) { downloadTableCsv(runId, tableName); },
+
+        // ── Load ER diagram (Step A) ──────────────────────────────────────
+        async loadSchema(runId) {
+          // Only attempt for relational runs; guard avoids a server round-trip
+          if (!this.currentRun || this.currentRun.module !== 'relational') {
+            this.schemaState = 'na';
+            return;
+          }
+          this.schemaState = 'loading';
+          this.schemaMermaid = '';
+          this.schemaError = '';
+          try {
+            const res = await getRunSchema(runId);
+            if (!res.applicable) {
+              this.schemaState = 'na';
+              this.schemaError = res.message || 'Not applicable for this run type.';
+              return;
+            }
+            this.schemaMermaid = res.mermaid;
+            this.schemaState = 'done';
+            // Render Mermaid after Alpine has updated the DOM
+            // mermaid.render() is the v10+ async API; init() was v9 and is gone in v11
+            this.$nextTick(async () => {
+              const el = document.getElementById('mermaid-diagram');
+              if (el && window.mermaid) {
+                try {
+                  const { svg } = await window.mermaid.render('mermaid-er-svg', this.schemaMermaid);
+                  el.innerHTML = svg;
+                } catch (err) {
+                  this.schemaError = 'Diagram render error: ' + err.message;
+                  this.schemaState = 'error';
+                }
+              }
+            });
+          } catch (e) {
+            this.schemaState = 'error';
+            this.schemaError = e.message || 'Failed to load schema.';
+          }
+        },
+
+        // ── Score display helpers ─────────────────────────────────────────
+        // Returns inline style colour for score value (0-100 scale).
+        scoreColor(val) {
+          if (val == null) return 'color: var(--ds-ink-muted)';
+          if (val >= 80)   return 'color: #4A9070';
+          if (val >= 60)   return 'color: #A07030';
+          return 'color: #C04040';
+        },
+
+        // Returns inline style for score card container.
+        scoreBg(val) {
+          if (val == null) return 'background: var(--ds-canvas); border: 1px solid var(--ds-border);';
+          if (val >= 80)   return 'background: rgba(80,160,120,0.07); border: 1px solid rgba(80,160,120,0.25);';
+          if (val >= 60)   return 'background: rgba(180,130,40,0.07); border: 1px solid rgba(180,130,40,0.25);';
+          return 'background: rgba(200,60,60,0.07); border: 1px solid rgba(200,60,60,0.25);';
+        },
+
+        // Returns hex colour for the SVG ring stroke.
+        scoreRingColor(val) {
+          if (val == null) return 'var(--ds-ink-muted)';
+          if (val >= 80)   return '#4A9070';
+          if (val >= 60)   return '#C09030';
+          return '#C04040';
+        },
+
+        // IMP: escapeHtml guards any future innerHTML use; x-text is already XSS-safe.
+        escapeHtml(str) {
+          return String(str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        },
+
+        // FIX 4: normalize 0-1 fractions to 0-100 display scale.
+        // ponytail: values <=1 assumed 0-1 fraction; edge case 1.0 → 100%.
+        fmtScore(val) {
+          if (val == null) return null;
+          return val <= 1.0 ? val * 100 : val;
+        },
+
+        // FIX 2: returns all table names from current run preview.
+        previewTableKeys() {
+          if (!this.currentRun || !this.currentRun.preview) return [];
+          return Object.keys(this.currentRun.preview);
+        },
+
+        // FIX 2: returns the selected table data; defaults to first key.
+        previewTable() {
+          if (!this.currentRun || !this.currentRun.preview) return null;
+          const keys = Object.keys(this.currentRun.preview);
+          if (!keys.length) return null;
+          const name = this.activePreviewTable || keys[0];
+          const allRows = this.currentRun.preview[name] || [];
+          const pageSize = 20;
+          const totalPages = Math.max(1, Math.ceil(allRows.length / pageSize));
+          const page = Math.min(this.previewPage, totalPages - 1);
+          const start = page * pageSize;
+          // row_counts holds actual generated count; preview may be capped
+          const generatedRows = (this.currentRun.row_counts || {})[name] ?? allRows.length;
+          return {
+            name,
+            columns:       allRows.length ? Object.keys(allRows[0]) : [],
+            rows:          allRows.slice(start, start + pageSize),
+            totalRows:     allRows.length,
+            generatedRows,
+            totalPages,
+            page,
+          };
+        },
+
+        statusLabel(s) {
+          if (s === 'done')   return STRINGS.status.done;
+          if (s === 'failed') return STRINGS.status.failed;
+          return STRINGS.status.pending;
+        },
+
+        // Returns only completed runs for the history table — filters out
+        // pending/in-progress temp runs which have no useful information.
+        completedRuns() {
+          return this.runs.filter(r => r.status === 'done' || r.status === 'generated');
+        },
+
+        // Formats a run_id like "09_30_2026_02_42_06_123456" → "2026-09-30 02:42:06"
+        // Falls back to truncated id for upload_ prefixed ids.
+        formatRunId(id) {
+          if (!id) return '—';
+          if (id.startsWith('upload_')) {
+            const ts = id.replace('upload_', '').slice(0, 16);
+            return 'Upload · ' + ts;
+          }
+          const p = id.split('_');
+          if (p.length >= 6) return `${p[2]}-${p[0]}-${p[1]}  ${p[3]}:${p[4]}:${p[5]}`;
+          return id.slice(0, 20);
+        },
+
+        // Returns the CSS class for a module badge.
+        moduleBadgeClass(mod) {
+          return 'mod-badge mod-' + (mod || 'tabular');
+        },
+      };
+    };
+  </script>
+
+  <!-- Alpine.js v3 — loaded after module script so window.appState is defined -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Mermaid — vendored, MIT licence (Step A: ER diagram) -->
+  <script src="./js/mermaid.min.js"></script>
+  <script>
+    // IMP: initialize Mermaid in manual mode so Alpine controls rendering timing
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
+      }
+    });
+  </script>
+</head>
+
+<!-- x-cloak prevents FOUC; removed by Alpine on boot -->
+<body class="min-h-screen transition-colors duration-300"
+      x-data="appState()" x-init="init()" x-cloak>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       LANDING PAGE
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div x-show="page === 'landing'"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       class="min-h-screen flex flex-col">
+
+    <!-- Landing header -->
+    <header class="flex items-center justify-between px-6 py-4" style="background: var(--ds-sidebar-bg); border-bottom: 1px solid rgba(255,255,255,0.07);">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center shadow-md" style="background: var(--ds-primary);">
+          <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h7"/>
+          </svg>
+        </div>
+        <span class="text-white font-semibold tracking-tight">SynTara</span>
+        <span class="text-slate-400 text-sm hidden sm:inline"
+              :class="lang === 'ur' ? 'font-nastaliq' : ''"
+              x-text="i18n[lang].tagline"></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Language toggle -->
+        <button @click="toggleLang()" title="Toggle language"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: var(--ds-sidebar-text-on);">
+          <span x-text="lang === 'en' ? 'اردو' : 'EN'"></span>
+        </button>
+        <!-- Dark / light toggle -->
+        <button @click="toggleDark()" aria-label="Toggle theme"
+                class="p-2 rounded-lg transition-colors"
+                style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: var(--ds-sidebar-text-on);">
+          <!-- Sun (dark mode active → click to go light) -->
+          <svg x-show="darkMode" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="4"/>
+            <path stroke-linecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <!-- Moon (light mode active → click to go dark) -->
+          <svg x-show="!darkMode" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Hero section — video background -->
+    <section class="flex-1 relative overflow-hidden flex flex-col items-center justify-center text-center px-4 py-20">
+      <!-- BG video: muted, looped, covers entire section -->
+      <video autoplay muted loop playsinline
+             class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+             style="z-index: 0;">
+        <source src="./bg-video.mp4" type="video/mp4" />
+      </video>
+      <!-- Overlay: dark mode = deep; light mode = slightly less opaque but still readable -->
+      <div class="absolute inset-0 pointer-events-none"
+           :style="darkMode
+             ? 'background: linear-gradient(150deg, rgba(8,10,14,0.80) 0%, rgba(18,25,40,0.76) 100%); z-index: 1;'
+             : 'background: linear-gradient(150deg, rgba(14,18,28,0.72) 0%, rgba(24,20,42,0.68) 100%); z-index: 1;'">
+      </div>
+      <!-- Content sits above overlay -->
+      <div class="max-w-3xl mx-auto relative" style="z-index: 2;">
+        <!-- Headline -->
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white mb-4 leading-tight hero-shadow"
+            :class="lang === 'ur' ? 'font-nastaliq text-3xl sm:text-4xl' : ''"
+            x-text="i18n[lang].landing_headline"></h1>
+        <p class="text-white/80 text-lg sm:text-xl mb-12 font-medium hero-sub"
+           :class="lang === 'ur' ? 'font-nastaliq' : ''"
+           x-text="i18n[lang].landing_sub"></p>
+
+        <!-- Feature cards (staggered fade-in via CSS animation) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12 text-left">
+          <!-- Tabular -->
+          <div class="card-enter hero-card rounded-2xl p-5 transition-colors">
+            <div class="w-10 h-10 bg-indigo-500/30 rounded-xl flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18M10 3v18M14 3v18"/>
+              </svg>
+            </div>
+            <h3 class="text-white font-semibold text-sm mb-1 hero-sub"
+                :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                x-text="i18n[lang].nav_tabular"></h3>
+            <p class="text-white/65 text-xs leading-relaxed">CSV datasets with realistic column types and distributions</p>
+          </div>
+          <!-- Relational -->
+          <div class="card-enter hero-card rounded-2xl p-5 transition-colors">
+            <div class="w-10 h-10 bg-violet-500/30 rounded-xl flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+              </svg>
+            </div>
+            <h3 class="text-white font-semibold text-sm mb-1 hero-sub"
+                :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                x-text="i18n[lang].nav_relational"></h3>
+            <p class="text-white/65 text-xs leading-relaxed">Multi-table schemas with foreign key integrity</p>
+          </div>
+          <!-- Documents -->
+          <div class="card-enter hero-card rounded-2xl p-5 transition-colors">
+            <div class="w-10 h-10 bg-pink-500/30 rounded-xl flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-pink-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <h3 class="text-white font-semibold text-sm mb-1 hero-sub"
+                :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                x-text="i18n[lang].nav_documents"></h3>
+            <p class="text-white/65 text-xs leading-relaxed">Invoices, receipts and structured PDF documents</p>
+          </div>
+          <!-- Data Mode -->
+          <div class="card-enter hero-card rounded-2xl p-5 transition-colors">
+            <div class="w-10 h-10 bg-emerald-500/30 rounded-xl flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+            </div>
+            <h3 class="text-white font-semibold text-sm mb-1 hero-sub"
+                :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                x-text="i18n[lang].nav_datamode"></h3>
+            <p class="text-white/65 text-xs leading-relaxed">Upload CSV → generate a privacy-safe synthetic clone</p>
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <button @click="goToApp()"
+                class="inline-flex items-center gap-2 text-white font-semibold px-8 py-4 rounded-2xl text-lg transition-all duration-200 shadow-xl hover:-translate-y-0.5 active:translate-y-0"
+                style="background: var(--ds-primary); box-shadow: 0 20px 25px -5px rgba(127,160,143,0.30);"
+                onmouseover="this.style.background='var(--ds-primary-hover)'"
+                onmouseout="this.style.background='var(--ds-primary)'">
+          <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].get_started"></span>
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+  </div><!-- /landing -->
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       APP PAGE
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div x-show="page === 'app'"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 translate-y-1"
+       x-transition:enter-end="opacity-100 translate-y-0"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       class="min-h-screen flex flex-col">
+
+    <!-- App header (sticky) -->
+    <header class="px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm"
+            style="background: var(--ds-surface); border-bottom: 1px solid var(--ds-border);">
+      <div class="flex items-center gap-3 min-w-0">
+        <!-- Back link -->
+        <button @click="page = 'landing'"
+                class="p-1 rounded-lg transition-colors"
+                style="color: var(--ds-ink-muted);"
+                :title="i18n[lang].back" aria-label="Back to landing"
+                onmouseover="this.style.color='var(--ds-primary)'" onmouseout="this.style.color='var(--ds-ink-muted)'">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <div class="h-5 w-px shrink-0" style="background: var(--ds-border);"></div>
+        <!-- Logo -->
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: var(--ds-primary);">
+            <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h7"/>
+            </svg>
+          </div>
+          <span class="font-semibold tracking-tight truncate" style="color: var(--ds-ink);">SynTara</span>
+          <span class="text-sm hidden md:inline truncate"
+                style="color: var(--ds-ink-muted);"
+                :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                x-text="i18n[lang].tagline"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Language toggle -->
+        <button @click="toggleLang()" title="Toggle language"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                style="background: var(--ds-canvas); border: 1px solid var(--ds-border); color: var(--ds-ink);">
+          <span x-text="lang === 'en' ? 'اردو' : 'EN'"></span>
+        </button>
+        <!-- Theme toggle -->
+        <button @click="toggleDark()" aria-label="Toggle theme"
+                class="p-2 rounded-lg transition-colors"
+                style="background: var(--ds-canvas); border: 1px solid var(--ds-border); color: var(--ds-ink);">
+          <svg x-show="darkMode" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="4"/>
+            <path stroke-linecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg x-show="!darkMode" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Layout: sidebar + main -->
+    <div class="flex flex-col md:flex-row flex-1 min-h-0">
+
+      <!-- Sidebar — Forge-style: workspace header + numbered pipeline steps + util footer -->
+      <nav class="ds-sidebar md:w-56 flex md:flex-col flex-row overflow-x-auto md:overflow-visible border-b md:border-b-0 md:border-r shrink-0"
+           style="border-color: rgba(255,255,255,0.07);"
+           role="navigation" aria-label="Module selector">
+
+        <!-- Workspace header — desktop only -->
+        <div class="ds-workspace-header hidden md:block">
+          <div class="ds-workspace-name">SynTara / Synthetic</div>
+        </div>
+
+        <!-- Pipeline stage label -->
+        <div class="ds-stage-label hidden md:block">Pipeline</div>
+
+        <!-- Dynamic modules from config -->
+        <template x-for="(mod, idx) in config.modules" :key="mod">
+          <button
+            class="ds-nav-item focus:outline-none"
+            :class="currentModule === mod ? 'ds-active' : ''"
+            @click="selectModule(mod)"
+            :aria-current="currentModule === mod ? 'page' : null">
+            <!-- Tabular icon -->
+            <template x-if="mod === 'tabular'">
+              <svg class="w-3.5 h-3.5 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18M10 3v18M14 3v18"/>
+              </svg>
+            </template>
+            <!-- Relational icon -->
+            <template x-if="mod === 'relational'">
+              <svg class="w-3.5 h-3.5 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+              </svg>
+            </template>
+            <!-- Documents icon -->
+            <template x-if="mod === 'documents'">
+              <svg class="w-3.5 h-3.5 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </template>
+            <span :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                  x-text="i18n[lang]['nav_' + mod] || S.label.module[mod] || mod"></span>
+          </button>
+        </template>
+
+        <!-- FIX 1: Data Mode is not in config.modules; static entry, always step 04. -->
+        <button
+          class="ds-nav-item focus:outline-none"
+          :class="currentModule === 'data_mode' ? 'ds-active' : ''"
+          @click="selectModule('data_mode')"
+          :aria-current="currentModule === 'data_mode' ? 'page' : null">
+          <svg class="w-3.5 h-3.5 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+          </svg>
+          <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].nav_datamode"></span>
+        </button>
+
+        <!-- Bottom utility links — desktop only -->
+        <div class="ds-util-section hidden md:block">
+          <button class="ds-util-item">
+            <svg class="w-3.5 h-3.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            Settings
+          </button>
+          <button class="ds-util-item">
+            <svg class="w-3.5 h-3.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+            Documentation
+          </button>
+        </div>
+      </nav>
+
+      <!-- Main content area -->
+      <main class="flex-1 min-w-0 overflow-y-auto flex flex-col" style="background: var(--ds-canvas);">
+
+        <!-- Context breadcrumb bar -->
+        <div class="px-6 pt-1 pb-0 shrink-0" style="border-bottom: 1px solid var(--ds-border);">
+          <div class="ds-context-bar pb-2">
+            <span x-text="currentModule === 'data_mode' ? 'DATA MODE' : (i18n[lang]['nav_' + currentModule] || 'GENERATE').toUpperCase()"></span>
+            <div class="ds-context-dot"></div>
+            <span x-text="currentModule === 'data_mode' ? 'Upload & Synthesise' : 'Query Generation'"></span>
+            <template x-if="runState === 'done' && currentRun">
+              <span style="margin-left: auto; color: var(--ds-primary); font-size: 10px;">● Run complete</span>
+            </template>
+          </div>
+        </div>
+
+        <!-- Content wrapper with padding -->
+        <div class="flex-1 p-4 sm:p-6 space-y-4 min-w-0">
+
+        <!-- ── Form card ──────────────────────────────────────────── -->
+        <section class="ds-card p-5 shadow-sm section-card">
+          <!-- Forge-style page heading -->
+          <div class="mb-5 pb-4" style="border-bottom: 1px solid var(--ds-border);">
+            <div class="ds-page-title"
+                 :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                 x-text="currentModule === 'data_mode' ? i18n[lang].upload_title : i18n[lang].preview_title + ' — ' + (i18n[lang]['nav_' + currentModule] || '')">
+            </div>
+          </div>
+          <div class="flex flex-col lg:flex-row gap-5">
+
+            <!-- Left: query textarea or upload zone -->
+            <div class="flex-1 space-y-3 min-w-0">
+
+              <!-- Query input — hidden in data_mode -->
+              <div x-show="currentModule !== 'data_mode'" class="space-y-3">
+                <label class="block font-semibold mb-1 ds-heading"
+                       style="color: var(--ds-ink); font-size: 1.1rem;"
+                       for="query-input">
+                  Data Generation
+                </label>
+                <textarea
+                  id="query-input"
+                  x-model="formData.query"
+                  class="ds-input resize-none"
+                  rows="4"
+                  :placeholder="i18n[lang].query_placeholder"
+                  :aria-required="currentModule !== 'data_mode'">
+                </textarea>
+                <div class="flex gap-2 flex-wrap mt-1">
+                  <button
+                    @click="generate()"
+                    :disabled="runState === 'loading'"
+                    class="ds-btn-primary"
+                    aria-live="polite">
+                    <span x-show="runState === 'loading'"
+                          class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true"></span>
+                    <span :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                          x-text="runState === 'loading' ? i18n[lang].generating : i18n[lang].generate_btn"></span>
+                  </button>
+                  <button
+                    x-show="runState === 'done' && currentRun"
+                    @click="save()"
+                    class="ds-btn-ghost">
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                    </svg>
+                    <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].save_run"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- File upload (Data Mode) — large drop zone -->
+              <div x-show="currentModule === 'data_mode'" class="space-y-3" x-cloak>
+                <p class="text-sm font-medium mb-1"
+                   style="color: var(--ds-ink-muted);"
+                   :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                   x-text="i18n[lang].upload_title"></p>
+                <!-- Label wraps hidden input to make the whole zone clickable -->
+                <label for="file-upload"
+                       class="upload-zone flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-10 cursor-pointer transition-all duration-200 group"
+                       style="border-color: var(--ds-border);">
+                  <div class="w-14 h-14 rounded-2xl flex items-center justify-center transition-colors" style="background: var(--ds-canvas);">
+                    <svg class="w-7 h-7 transition-colors" style="color: var(--ds-ink-muted);"
+                         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-sm font-medium"
+                       style="color: var(--ds-ink);"
+                       :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                       x-text="i18n[lang].upload_hint"></p>
+                    <p class="text-xs mt-1" style="color: var(--ds-ink-muted);">
+                      CSV only · Max <span x-text="config.max_upload_mb || 10"></span> MB
+                    </p>
+                  </div>
+                  <!-- sr-only hides the default file input; label click triggers it -->
+                  <input type="file" id="file-upload" accept=".csv"
+                         @change="uploadFile($event)" class="sr-only" />
+                </label>
+              </div>
+            </div>
+
+            <!-- Right: config panel — hidden in data_mode -->
+            <div x-show="currentModule !== 'data_mode'" class="lg:w-60 shrink-0">
+              <fieldset class="rounded-xl p-4 space-y-3" style="background: var(--ds-canvas); border: 1px solid var(--ds-border);">
+                <legend class="text-xs font-semibold uppercase tracking-widest px-0.5"
+                        style="color: var(--ds-ink-muted);"
+                        :class="lang === 'ur' ? 'font-nastaliq text-sm normal-case tracking-normal' : ''"
+                        x-text="i18n[lang].configuration"></legend>
+
+                <div x-show="currentModule !== 'relational'">
+                  <label class="block text-xs font-medium mb-1"
+                         style="color: var(--ds-ink-muted);"
+                         :class="lang === 'ur' ? 'font-nastaliq text-sm' : ''"
+                         for="cfg-rows" x-text="i18n[lang].rows_label"></label>
+                  <input id="cfg-rows" type="number" x-model="formData.n_rows"
+                    min="1" :max="config.max_rows"
+                    class="ds-input" />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium mb-1"
+                         style="color: var(--ds-ink-muted);"
+                         :class="lang === 'ur' ? 'font-nastaliq text-sm' : ''"
+                         for="cfg-seed" x-text="i18n[lang].seed_label"></label>
+                  <input id="cfg-seed" type="number" x-model="formData.seed"
+                    placeholder="random"
+                    class="ds-input" />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium mb-1"
+                         style="color: var(--ds-ink-muted);"
+                         :class="lang === 'ur' ? 'font-nastaliq text-sm' : ''"
+                         for="cfg-locale" x-text="i18n[lang].locale_label"></label>
+                  <!-- Currency auto-updates when locale changes — logic kept from original -->
+                  <select id="cfg-locale" x-model="formData.locale"
+                    @change="
+                      if      (formData.locale === 'en_US') formData.currency = 'USD';
+                      else if (formData.locale === 'en_GB') formData.currency = 'GBP';
+                      else if (formData.locale === 'fr_FR') formData.currency = 'EUR';
+                      else if (formData.locale === 'es_ES') formData.currency = 'EUR';
+                      else if (formData.locale === 'de_DE') formData.currency = 'EUR';
+                      else if (formData.locale === 'ar_SA') formData.currency = 'SAR';
+                      else if (formData.locale === 'ar_AA') formData.currency = 'PKR';
+                      else if (formData.locale === 'ur_PK') formData.currency = 'PKR';
+                      else formData.currency = 'PKR';
+                    "
+                    class="ds-input">
+                    <option value="en_PK">English (Pakistan)</option>
+                    <option value="en_US">English (US)</option>
+                    <option value="en_GB">English (UK)</option>
+                    <option value="fr_FR">French</option>
+                    <option value="es_ES">Spanish</option>
+                    <option value="de_DE">German</option>
+                    <option value="ar_SA">Arabic (Saudi)</option>
+                    <option value="ar_AA">Arabic (General)</option>
+                    <option value="ur_PK">Urdu (Pakistan)*</option>
+                  </select>
+                </div>
+
+                <div class="flex items-center gap-2.5 pt-1">
+                  <input id="cfg-privacy" type="checkbox" x-model="formData.privacy"
+                    class="rounded w-4 h-4 shrink-0"
+                    style="accent-color: var(--ds-primary);" />
+                  <label for="cfg-privacy"
+                         class="text-xs font-medium cursor-pointer select-none"
+                         style="color: var(--ds-ink-muted);"
+                         :class="lang === 'ur' ? 'font-nastaliq text-sm' : ''"
+                         x-text="i18n[lang].privacy_label"></label>
+                </div>
+              </fieldset>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ── Error banner ───────────────────────────────────────── -->
+        <div x-show="runState === 'error'" role="alert" x-transition
+             class="rounded-xl px-5 py-4 text-sm flex items-start gap-3"
+             style="background: rgba(200,80,60,0.08); border: 1px solid rgba(200,80,60,0.25); color: #C85040;">
+          <svg class="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <div>
+            <strong :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].error_title + ':'"></strong>
+            <span class="ml-1" x-text="errorMsg"></span>
+          </div>
+        </div>
+
+        <!-- ── Preview / Schema card ──────────────────────────────── -->
+        <section class="ds-card p-5 shadow-sm section-card">
+          <!-- Tab bar: Preview | Schema (Schema only for relational) -->
+          <div x-show="runState === 'done' && currentRun" class="flex gap-1 mb-4">
+            <button
+              class="px-4 py-1.5 text-xs font-semibold rounded-lg border transition-colors focus:outline-none"
+              :style="activeResultTab === 'preview'
+                ? 'background: var(--ds-primary); color: #fff; border-color: var(--ds-primary);'
+                : 'background: var(--ds-surface); color: var(--ds-ink-muted); border-color: var(--ds-border);'"
+              @click="activeResultTab = 'preview'">
+              Preview
+            </button>
+            <!-- Schema tab — only for relational runs (Step A) -->
+            <button x-show="currentRun && currentRun.module === 'relational'"
+              class="px-4 py-1.5 text-xs font-semibold rounded-lg border transition-colors focus:outline-none"
+              :style="activeResultTab === 'schema'
+                ? 'background: var(--ds-primary); color: #fff; border-color: var(--ds-primary);'
+                : 'background: var(--ds-surface); color: var(--ds-ink-muted); border-color: var(--ds-border);'"
+              @click="activeResultTab = 'schema'; if (schemaState === 'idle') loadSchema(currentRun.run_id)">
+              Schema
+            </button>
+          </div>
+
+          <!-- ── PREVIEW TAB ─────────────────────────────────────── -->
+          <div x-show="activeResultTab === 'preview'">
+
+          <!-- Header row: title + action buttons -->
+          <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+            <h2 class="text-base font-semibold section-title ds-heading"
+                style="color: var(--ds-ink);"
+                :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                x-text="i18n[lang].preview_title"></h2>
+            <div class="flex gap-2 flex-wrap">
+              <!-- New Variation button — data_mode only -->
+              <button x-show="currentModule === 'data_mode' && runState === 'done' && currentRun"
+                      @click="regenerate()"
+                      :disabled="regenLoading"
+                      class="ds-btn-small" style="background: var(--ds-primary);">
+                <span x-show="regenLoading"
+                      class="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                <span :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                      x-text="regenLoading ? i18n[lang].generating : i18n[lang].new_variation"></span>
+              </button>
+              <!-- Download PDF — documents module only -->
+              <button x-show="currentModule === 'documents' && runState === 'done' && currentRun"
+                      @click="download(currentRun.run_id, 'pdf')"
+                      class="ds-btn-small" style="background: #B05040;">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].download_pdf"></span>
+              </button>
+              <!-- Download CSV (all tables as ZIP) -->
+              <button x-show="runState === 'done' && currentRun"
+                      @click="download(currentRun.run_id, 'csv')"
+                      class="ds-btn-small" style="background: #4A8A6A;">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].download_csv"></span>
+              </button>
+              <!-- Download JSON -->
+              <button x-show="runState === 'done' && currentRun"
+                      @click="download(currentRun.run_id, 'json')"
+                      class="ds-btn-small" style="background: #4A7A9A;">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].download_json"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Idle: empty state -->
+          <p x-show="runState === 'idle'"
+             class="text-sm italic py-10 text-center"
+             style="color: var(--ds-ink-muted);"
+             :class="lang === 'ur' ? 'font-nastaliq text-base' : ''"
+             x-text="i18n[lang].no_preview"></p>
+
+          <!-- Loading state -->
+          <div x-show="runState === 'loading'" class="flex flex-col items-center gap-3 py-14">
+            <div class="w-10 h-10 border-4 rounded-full animate-spin"
+                 style="border-color: var(--ds-border); border-top-color: var(--ds-primary);"></div>
+            <span class="text-sm" style="color: var(--ds-ink-muted);"
+                  :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                  x-text="i18n[lang].generating"></span>
+          </div>
+
+          <!-- Done: data table -->
+          <div x-show="runState === 'done'">
+            <template x-if="previewTable()">
+              <div class="overflow-x-auto -mx-1 px-1">
+                <!-- FIX 2: multi-table tab bar -->
+                <div x-show="previewTableKeys().length > 1" class="flex gap-1.5 mb-3 flex-wrap">
+                  <template x-for="tname in previewTableKeys()" :key="tname">
+                    <button
+                      class="px-3 py-1 text-xs font-semibold rounded-lg border transition-colors focus:outline-none"
+                      :style="(activePreviewTable || previewTableKeys()[0]) === tname
+                        ? 'background: var(--ds-primary); color: #fff; border-color: var(--ds-primary);'
+                        : 'background: var(--ds-surface); color: var(--ds-ink-muted); border-color: var(--ds-border);'"
+                      @click="activePreviewTable = tname; previewPage = 0"
+                      x-text="tname">
+                    </button>
+                  </template>
+                </div>
+                <p class="text-xs mb-2" style="color: var(--ds-ink-muted);">
+                  <span class="font-medium" style="color: var(--ds-ink);" x-text="previewTable().name"></span>
+                  &mdash;
+                  <span x-text="
+                    (() => {
+                      const t = previewTable();
+                      const from = t.page * 20 + 1;
+                      const to = Math.min((t.page + 1) * 20, t.totalRows);
+                      const suffix = t.generatedRows > t.totalRows
+                        ? `preview rows ${from}–${to} of ${t.totalRows} shown — ${t.generatedRows} generated — download CSV/JSON for full dataset`
+                        : `rows ${from}–${to} of ${t.totalRows} — download CSV/JSON for full dataset`;
+                      return suffix;
+                    })()
+                  "></span>
+                </p>
+                <table class="min-w-full text-xs border-collapse">
+                  <thead>
+                    <tr>
+                      <template x-for="col in previewTable().columns" :key="col">
+                        <th class="ds-mono ds-th px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                            x-text="col"></th>
+                      </template>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="(row, i) in previewTable().rows" :key="i">
+                      <tr class="ds-row transition-colors" style="border-top: 1px solid var(--ds-border);">
+                        <template x-for="col in previewTable().columns" :key="col">
+                          <td class="ds-mono ds-td px-3 py-2 whitespace-nowrap text-xs tabular-nums"
+                              x-text="row[col] ?? ''"></td>
+                        </template>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+                <!-- pagination -->
+                <div x-show="previewTable().totalPages > 1"
+                     class="flex items-center justify-between mt-3 pt-2"
+                     style="border-top: 1px solid var(--ds-border);">
+                  <button
+                    @click="previewPage = Math.max(0, previewPage - 1)"
+                    :disabled="previewPage === 0"
+                    class="px-3 py-1 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    style="background: var(--ds-surface); color: var(--ds-ink-muted); border-color: var(--ds-border);">
+                    ← Prev
+                  </button>
+                  <span class="text-xs" style="color: var(--ds-ink-muted);"
+                    x-text="`Page ${previewPage + 1} / ${previewTable().totalPages}` + (previewTable().generatedRows > previewTable().totalRows ? ` · ${previewTable().generatedRows} rows in CSV` : '')">
+                  </span>
+                  <button
+                    @click="previewPage = Math.min(previewTable().totalPages - 1, previewPage + 1)"
+                    :disabled="previewPage >= previewTable().totalPages - 1"
+                    class="px-3 py-1 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    style="background: var(--ds-surface); color: var(--ds-ink-muted); border-color: var(--ds-border);">
+                    Next →
+                  </button>
+                </div>
+              </div>
+            </template>
+            <template x-if="!previewTable()">
+              <p class="text-sm italic py-10 text-center" style="color: var(--ds-ink-muted);">No data returned.</p>
+            </template>
+          </div><!-- /done -->
+
+          <!-- Step B: per-table download buttons (all modes, shown when run is done) -->
+          <div x-show="runState === 'done' && currentRun && previewTableKeys().length > 0"
+               class="mt-4 pt-3 flex flex-wrap gap-2 items-center"
+               style="border-top: 1px solid var(--ds-border);">
+            <span class="text-xs font-semibold uppercase tracking-widest" style="color: var(--ds-ink-muted);">Download</span>
+            <!-- Per-table CSV buttons -->
+            <template x-for="tname in previewTableKeys()" :key="tname">
+              <button
+                @click="downloadTable(currentRun.run_id, tname)"
+                class="ds-btn-small" style="background: #4A8A6A;">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span x-text="tname + '.csv'"></span>
+              </button>
+            </template>
+            <!-- "Download all (ZIP)" only when >1 table -->
+            <button x-show="previewTableKeys().length > 1"
+              @click="download(currentRun.run_id, 'csv')"
+              class="ds-btn-small" style="background: #3A6A8A;">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Download all (ZIP)
+            </button>
+          </div>
+
+          </div><!-- /preview tab -->
+
+          <!-- ── SCHEMA TAB (Step A — relational only) ────────────── -->
+          <div x-show="activeResultTab === 'schema' && currentRun && currentRun.module === 'relational'">
+
+            <!-- Loading state -->
+            <div x-show="schemaState === 'loading'" class="flex items-center gap-3 py-10">
+              <div class="w-5 h-5 border-2 rounded-full animate-spin shrink-0"
+                   style="border-color: var(--ds-border); border-top-color: var(--ds-primary);"></div>
+              <span class="text-sm" style="color: var(--ds-ink-muted);">Loading schema…</span>
+            </div>
+
+            <!-- Not applicable / error -->
+            <div x-show="schemaState === 'na' || schemaState === 'error'"
+                 class="py-8 text-sm italic text-center" style="color: var(--ds-ink-muted);"
+                 x-text="schemaError || 'Schema not available for this run.'">
+            </div>
+
+            <!-- Idle hint -->
+            <div x-show="schemaState === 'idle'" class="py-8 text-sm italic text-center" style="color: var(--ds-ink-muted);">
+              Click the Schema tab to load the ER diagram.
+            </div>
+
+            <!-- Rendered Mermaid diagram -->
+            <div x-show="schemaState === 'done'" class="overflow-x-auto">
+              <p class="text-xs mb-3" style="color: var(--ds-ink-muted);">
+                Click a table name below to jump to its preview.
+              </p>
+              <div id="mermaid-diagram"
+                   style="background: var(--ds-canvas); border-radius: 8px; padding: 16px; min-height: 120px;">
+              </div>
+            </div>
+
+          </div><!-- /schema tab -->
+
+        </section>
+
+        <!-- ── Scorecard ──────────────────────────────────────────── -->
+        <section x-show="runState === 'done'" class="ds-card p-5 shadow-sm section-card">
+          <h2 class="text-base font-semibold mb-4 section-title ds-heading"
+              style="color: var(--ds-ink);"
+              :class="lang === 'ur' ? 'font-nastaliq' : ''"
+              x-text="i18n[lang].scores_title"></h2>
+
+          <!-- Polling spinner -->
+          <div x-show="!scores || scores.scores_status === 'pending'"
+               class="flex items-center gap-3 py-4">
+            <div class="w-5 h-5 border-2 rounded-full animate-spin shrink-0"
+                 style="border-color: var(--ds-border); border-top-color: var(--ds-primary);"></div>
+            <span class="text-sm" style="color: var(--ds-ink-muted);"
+                  :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                  x-text="i18n[lang].scoring"></span>
+          </div>
+
+          <!-- Query mode: scoring disabled notice -->
+          <div x-show="scores && scores.scores_status === 'parked'"
+               class="text-sm italic py-2"
+               style="color: var(--ds-ink-muted);"
+               :class="lang === 'ur' ? 'font-nastaliq' : ''"
+               x-text="i18n[lang].query_mode_scores">
+          </div>
+
+          <!-- FIX 4: fmtScore normalises 0-1 fractions; ring uses 0-100 dasharray -->
+          <div x-show="scores && scores.scores_status === 'done'"
+               class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+
+            <!-- Validity, Fidelity, Privacy — three identical ring cards -->
+            <template x-for="key in ['validity','fidelity','privacy']" :key="key">
+              <div class="rounded-2xl p-4 flex flex-col items-center gap-2 transition-all"
+                   :style="scoreBg(fmtScore(scores?.scores?.[key]))">
+                <div class="relative w-16 h-16">
+                  <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90">
+                    <circle class="score-ring-track" cx="18" cy="18" r="15.9" fill="none" stroke-width="3"/>
+                    <circle class="score-ring-fill" cx="18" cy="18" r="15.9" fill="none" stroke-width="3"
+                      :stroke="scoreRingColor(fmtScore(scores?.scores?.[key]))"
+                      :stroke-dasharray="(fmtScore(scores?.scores?.[key]) || 0).toFixed(1) + ' 100'"/>
+                  </svg>
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="ds-mono text-xs font-bold leading-none"
+                          :style="scoreColor(fmtScore(scores?.scores?.[key]))"
+                          x-text="scores?.scores?.[key] != null ? fmtScore(scores.scores[key]).toFixed(0) : '—'"></span>
+                  </div>
+                </div>
+                <span class="text-xs font-medium text-center"
+                      style="color: var(--ds-ink-muted);"
+                      :class="lang === 'ur' ? 'font-nastaliq text-sm' : ''"
+                      x-text="i18n[lang][key]"></span>
+              </div>
+            </template>
+
+            <!-- Utility card with TSTR/TRTS breakdown -->
+            <div class="rounded-2xl p-4 flex flex-col items-center gap-2 transition-all"
+                 :style="scoreBg(fmtScore(scores?.scores?.utility))">
+              <div class="relative w-16 h-16">
+                <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90">
+                  <circle class="score-ring-track" cx="18" cy="18" r="15.9" fill="none" stroke-width="3"/>
+                  <circle class="score-ring-fill" cx="18" cy="18" r="15.9" fill="none" stroke-width="3"
+                    :stroke="scoreRingColor(fmtScore(scores?.scores?.utility))"
+                    :stroke-dasharray="(fmtScore(scores?.scores?.utility) || 0).toFixed(1) + ' 100'"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <span class="ds-mono text-xs font-bold leading-none"
+                        :style="scoreColor(fmtScore(scores?.scores?.utility))"
+                        x-text="scores?.scores?.utility != null ? fmtScore(scores.scores.utility).toFixed(0) : '—'"></span>
+                </div>
+              </div>
+              <span class="text-xs font-medium text-center"
+                    style="color: var(--ds-ink-muted);"
+                    :class="lang === 'ur' ? 'font-nastaliq text-sm' : ''"
+                    x-text="i18n[lang].utility"></span>
+              <!-- TSTR / TRTS sub-scores -->
+              <div x-show="scores?.scores?.details?.utility_details"
+                   class="w-full space-y-0.5 pt-2"
+                   style="border-top: 1px solid var(--ds-border);">
+                <div class="ds-mono text-xs" style="color: var(--ds-ink-muted);">
+                  TSTR: <span class="font-semibold" style="color: var(--ds-ink);"
+                    x-text="scores?.scores?.details?.utility_details?.tstr_score != null
+                      ? fmtScore(scores.scores.details.utility_details.tstr_score).toFixed(1) : '—'"></span>
+                </div>
+                <div class="ds-mono text-xs" style="color: var(--ds-ink-muted);">
+                  TRTS: <span class="font-semibold" style="color: var(--ds-ink);"
+                    x-text="scores?.scores?.details?.utility_details?.trts_score != null
+                      ? fmtScore(scores.scores.details.utility_details.trts_score).toFixed(1) : '—'"></span>
+                </div>
+                <div class="ds-mono text-xs truncate" style="color: var(--ds-ink-muted);">
+                  Target: <span class="font-semibold" style="color: var(--ds-ink);"
+                    x-text="scores?.scores?.details?.utility_details?.target_column || '—'"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overall score card -->
+            <div class="rounded-2xl p-4 flex flex-col items-center gap-2 col-span-2 sm:col-span-1 transition-all"
+                 :style="scoreBg(fmtScore(scores?.scores?.overall))">
+              <div class="relative w-16 h-16">
+                <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90">
+                  <circle class="score-ring-track" cx="18" cy="18" r="15.9" fill="none" stroke-width="3"/>
+                  <circle class="score-ring-fill" cx="18" cy="18" r="15.9" fill="none" stroke-width="3"
+                    :stroke="scoreRingColor(fmtScore(scores?.scores?.overall))"
+                    :stroke-dasharray="(fmtScore(scores?.scores?.overall) || 0).toFixed(1) + ' 100'"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <span class="ds-mono text-sm font-bold leading-none"
+                        :style="scoreColor(fmtScore(scores?.scores?.overall))"
+                        x-text="scores?.scores?.overall != null ? fmtScore(scores.scores.overall).toFixed(0) : '—'"></span>
+                </div>
+              </div>
+              <span class="text-xs font-medium text-center"
+                    style="color: var(--ds-ink-muted);"
+                    :class="lang === 'ur' ? 'font-nastaliq text-sm' : ''"
+                    x-text="i18n[lang].overall"></span>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ── Run History hidden per user request ── -->
+        <section hidden class="ds-card p-5 shadow-sm section-card">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold section-title ds-heading"
+                style="color: var(--ds-ink);"
+                :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                x-text="i18n[lang].run_history"></h2>
+            <span x-show="completedRuns().length"
+                  class="text-xs font-medium tabular-nums"
+                  style="color: var(--ds-ink-muted);"
+                  x-text="completedRuns().length + ' run' + (completedRuns().length !== 1 ? 's' : '')"></span>
+          </div>
+
+          <!-- Empty state: no completed runs -->
+          <div x-show="!completedRuns().length"
+               class="flex flex-col items-center gap-2 py-10 text-center">
+            <svg class="w-10 h-10 text-slate-200 dark:text-slate-700 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <p class="text-sm font-medium" style="color: var(--ds-ink-muted);">No completed runs yet</p>
+            <p class="text-xs mt-1" style="color: var(--ds-ink-muted); opacity: 0.6;">Saved runs appear here after generation completes</p>
+          </div>
+
+          <div x-show="completedRuns().length" class="overflow-x-auto -mx-1 px-1">
+            <table class="min-w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  <th class="ds-mono ds-th px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Timestamp</th>
+                  <th class="ds-mono ds-th px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Module</th>
+                  <th class="ds-mono ds-th px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Status</th>
+                  <th class="ds-mono ds-th px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Export</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(run, i) in completedRuns()" :key="run.run_id || i">
+                  <tr class="run-row ds-row" style="border-top: 1px solid var(--ds-border);"
+                    <td class="ds-mono px-3 py-2.5 whitespace-nowrap text-xs" style="color: var(--ds-ink-muted);"
+                        x-text="formatRunId(run.run_id)"></td>
+                    <td class="px-3 py-2.5">
+                      <span :class="moduleBadgeClass(run.module)" x-text="run.module || 'tabular'"></span>
+                    </td>
+                    <td class="px-3 py-2.5">
+                      <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        Done
+                      </span>
+                    </td>
+                    <td class="px-3 py-2.5">
+                      <div class="flex items-center gap-2">
+                        <button @click="download(run.run_id, 'csv')"
+                                class="text-xs font-medium transition-colors" style="color: var(--ds-primary);"
+                          CSV
+                        </button>
+                        <span style="color: var(--ds-border);">·</span>
+                        <button @click="download(run.run_id, 'json')"
+                                class="text-xs font-medium transition-colors"
+                                style="color: var(--ds-primary);">
+                          JSON
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        </div><!-- /content wrapper -->
+
+        <!-- ── Bottom action bar — Forge-style step info + primary CTA ── -->
+        <div class="ds-bottom-bar shrink-0">
+          <div class="ds-step-info">
+            <div class="ds-step-dot"></div>
+            <span x-text="(i18n[lang]['nav_' + currentModule] || 'Data Mode').toUpperCase()"></span>
+            <span style="opacity:0.35;">•</span>
+            <span x-text="currentModule === 'data_mode' ? 'Upload mode' : 'Query mode'"></span>
+            <template x-if="runState === 'done' && currentRun">
+              <span style="margin-left: 12px; color: var(--ds-primary);">
+                Run complete
+                <span x-show="scores && scores.scores_status === 'done'" style="margin-left:4px;" x-text="scores?.scores?.overall != null ? '· Score ' + fmtScore(scores.scores.overall).toFixed(0) : ''"></span>
+              </span>
+            </template>
+          </div>
+          <div class="flex items-center gap-2">
+            <button x-show="runState === 'done' && currentRun"
+                    @click="save()"
+                    class="ds-btn-ghost" style="font-size: 12px; padding: 7px 14px;">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+              </svg>
+              <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].save_run"></span>
+            </button>
+            <button x-show="currentModule !== 'data_mode'"
+                    @click="generate()"
+                    :disabled="runState === 'loading'"
+                    class="ds-btn-primary" style="padding: 8px 20px; font-size: 13px; border-radius: 8px;">
+              <span x-show="runState === 'loading'"
+                    class="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              <span :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                    x-text="runState === 'loading' ? i18n[lang].generating : i18n[lang].generate_btn"></span>
+              <svg x-show="runState !== 'loading'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div><!-- /app -->
+
+</body>
+</html>

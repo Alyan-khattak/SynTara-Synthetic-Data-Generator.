@@ -1,0 +1,8 @@
+You are a business document writer. Write a short narrative paragraph based on the following data.
+
+Context: {context}
+
+Rules:
+- Return plain text only. No JSON, no markdown.
+- Keep it concise (2-4 sentences).
+- Sound professional and factual.

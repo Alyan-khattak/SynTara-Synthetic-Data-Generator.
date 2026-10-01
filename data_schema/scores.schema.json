@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HackDataV2 Scores",
+  "description": "Schema for the evaluation/scores.json artifact written by the Evaluator component.",
+  "type": "object",
+  "required": ["run_id", "status", "validity", "fidelity", "utility", "privacy"],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Timestamp-based run identifier matching the Artifacts/ folder name."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "partial", "done"],
+      "description": "pending while Evaluator runs; partial if some pillars are done; done when all four are scored."
+    },
+    "validity": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "0–100 structural/rule/coherence score from DataValidator."
+    },
+    "fidelity": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "0–100 KS/TVD/correlation score vs. real data (null in query mode)."
+    },
+    "utility": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "0–100 TSTR/TRTS score; null in query mode."
+    },
+    "privacy": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "0–100 exact-match / nearest-neighbour distance score; null in query mode."
+    },
+    "overall": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Weighted aggregate of the four pillars using EVAL_WEIGHTS."
+    },
+    "weights": {
+      "type": "object",
+      "description": "Copy of EVAL_WEIGHTS used when computing overall (echo for reproducibility).",
+      "additionalProperties": {"type": "number"}
+    },
+    "details": {
+      "type": "object",
+      "description": "Metric-level breakdown: KS distances, RF scores, NN ratios, etc."
+    }
+  },
+  "additionalProperties": false
+}

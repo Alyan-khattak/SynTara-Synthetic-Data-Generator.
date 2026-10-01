@@ -1,0 +1,26 @@
+tables:
+  - name: transactions
+    row_count: 1000
+    columns:
+      - name: txn_id
+        type: pk
+      - name: account_id
+        type: integer
+        min: 1000
+        max: 9999
+      - name: amount
+        type: money
+        min: 100
+        max: 500000
+      - name: txn_type
+        type: categorical
+        pool: ["credit", "debit", "transfer", "withdrawal"]
+      - name: merchant
+        type: categorical
+        pool: ["Grocery", "Gas Station", "Restaurant", "Online Shopping", "Utilities", "ATM"]
+      - name: txn_date
+        type: date
+        min: "2023-01-01"
+        max: "2024-12-31"
+      - name: is_fraud
+        type: boolean

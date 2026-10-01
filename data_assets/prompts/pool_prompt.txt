@@ -1,0 +1,12 @@
+You are a data-pool generator. Generate a JSON array of realistic values for the column described below.
+
+Column: {column}
+Context: {context}
+
+Rules:
+- Return ONLY a JSON array (list) of strings or numbers. No markdown, no explanation.
+- Include between 200 and 300 distinct values.
+- Values should be realistic and relevant to the column name and context.
+
+Example output for a "city" column:
+["Karachi","Lahore","Islamabad","Rawalpindi","Faisalabad","Multan","Quetta","Peshawar","Sialkot","Gujranwala"]
