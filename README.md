@@ -1,134 +1,240 @@
 # SynTara — Synthetic Data Platform
 
-An open-source synthetic data generation platform. You describe what data you need in plain text; the platform generates realistic, statistically valid datasets ready to export as CSV, JSON, or SQL.
+> Describe the data you need, or drop a sample. SynTara turns that into a generation plan, builds consistent data from it, validates it, and scores it.
 
-Licensed under the [MIT License](LICENSE).
+Built in ~10 hours at a hackathon by 3 people + Claude Code. Runs on a laptop (8 GB RAM, no GPU).
 
 ---
 
 ## What it does
 
-HackDataV2 supports three generation modes:
+SynTara generates **realistic, privacy-safe synthetic data** in three forms:
 
-1. **Query mode (Tabular / Relational)** — type a plain-English description (e.g. "200 employees with name, department, salary and hire date") and the platform generates a validated dataset. The open-weight LLM turns your description into a typed spec (column names, data types, rules, distributions); the generation engine then builds every row, key, number and date — the LLM never writes data directly.
+| Mode | What you get |
+|------|-------------|
+| **Tabular** | Single CSV with typed columns, rules and distributions |
+| **Relational** | Multi-table schema with enforced foreign keys and consistency |
+| **Documents** | Invoices and bank statements as PDF/JSON |
+| **Data Mode** | Upload a real CSV → synthesise structurally similar data (copula-based) |
+| **ML Lab** | Plant a predictable target signal, split train/test, run an ML check |
 
-2. **Data mode** — upload an existing CSV; the platform fits a Gaussian Copula on an 80/20 train/hold-out split and samples synthetic records that preserve the statistical distribution without leaking private values.
-
-3. **Documents mode** — generate structured document records (invoices, statements) as tabular data, then render them to PDF via Jinja2 templates.
-
-**What the AI does NOT do:** the LLM writes only the spec (column names and rules). Every row, number, date, key and total is produced by the Python generation engine using a seeded RNG. The LLM never outputs data directly.
-
----
-
-## Open-weight models
-
-| Model | Size | Served via | Licence / Terms |
-|---|---|---|---|
-| `openai/gpt-oss-120b` (primary) | 120 B | [Groq](https://groq.com) | [Apache 2.0](https://huggingface.co/openai/gpt-oss-120b) — VERIFY |
-| `openai/gpt-oss-20b` (backup) | 20 B | [Groq](https://groq.com) | [Apache 2.0](https://huggingface.co/openai/gpt-oss-20b) — VERIFY |
-
-Both models are open-weight and accessed through Groq's inference API using the official `groq` Python SDK. No closed-model providers are used anywhere in this project.
-
-### Bake-off results (2026-10-01)
-
-| Model | Valid/5 | Avg latency | Notes |
-|---|---|---|---|
-| `openai/gpt-oss-120b` | **5/5** | 2.1 s | **Primary** |
-| `openai/gpt-oss-20b` | 4/5 | 1.6 s | Backup |
-| `qwen/qwen3.8-27b` | 3/5 | 4.8 s | OTPM rate-limit on free tier; rejected |
-
-Full results: [`docs/model_bakeoff.md`](docs/model_bakeoff.md).
+Every run returns a **scorecard** (validity, fidelity, utility, privacy) so you know how good the data is.
 
 ---
 
-## Third-party library licences
+## Features
 
-| Library | Licence |
-|---|---|
-| FastAPI | MIT |
-| Pydantic v2 | MIT |
-| groq Python SDK | Apache 2.0 |
-| pandas | BSD-3 |
-| numpy | BSD-3 |
-| scipy | BSD-3 |
-| scikit-learn | BSD-3 |
-| Faker | MIT |
-| httpx | BSD-3 |
-| Jinja2 | BSD-3 |
-| python-dotenv | BSD-3 |
-| simpleeval | MIT |
-| dill | BSD-3 |
-| Playwright | Apache 2.0 |
-| Babel | BSD-3 |
-| PyYAML | MIT |
-| uvicorn | BSD-3 |
+- Natural-language query → LLM writes a generation spec → engine generates every row deterministically
+- Uploaded data **never** sent to any external model or API
+- Fully reproducible: every random draw uses an explicit seed derived from a master seed via blake2b
+- Gaussian copula preserves column correlations in Data Mode
+- Column profiler: Pearson/Spearman, Cramér's V, η², heatmap matrix, auto-findings
+- ML Lab: RandomForest check, AUC (classification) or R² (regression) vs baseline
+- Bilingual UI (English / Urdu) via Alpine.js i18n
+- No database; artifacts stored in `Artifacts/temp/` and `Artifacts/saved/`
 
 ---
 
-## Generated data — what is and isn't produced
-
-| Field type | What is generated | What is NOT generated |
-|---|---|---|
-| Emails | `user@example.com` — RFC 2606 reserved domain only | Real email addresses or deliverable domains |
-| Phone numbers | Synthetic `+92 3XX-XXXXXXX` format (VERIFY: some prefixes may be unallocated — see VERIFY comment in `gen_phone`) | Real subscriber lookup; real person's number |
-| National IDs (CNIC) | Pattern `*****-*******-X` masked by default; first digit is always `"0"` (fake marker) so IDs cannot match real CNICs | Real CNICs; unmasked IDs unless `masked: false` explicitly set in spec |
-| Card numbers | Masked `**** **** **** XXXX [TEST CARD]`; drawn from 4 published processor test cards (Stripe/Adyen) | Real card numbers; CVV; expiry dates |
-| Names, addresses | Faker-generated with `@example.com` for email parts | Real person's data |
-| Numeric values | Seeded RNG with distribution parameters from spec | Data copied from any real dataset |
-
-Every export ZIP contains a `NOTICE.txt` that reads:
-
-> SYNTHETIC DATA — generated by HackDataV2. Not real personal or financial data. Card numbers are published processor test cards only.
-
-**Upload mode (Data Mode):** when you upload a CSV, the pipeline detects column names that match sensitive patterns (`email`, `phone`, `card`, `national_id`, `iban`, etc.) and masks those columns in the synthetic output. The LLM is never sent raw row values — only column names and aggregate statistics.
-
----
-
-## Setup
-
-**Requirements:** Python 3.11+, pip
+## Quick Start
 
 ```bash
-# 1. Clone and install
-git clone <repo-url> && cd HackDataV2
+# 1. clone and install
+git clone <repo-url>
+cd HacktoberFest
 pip install -e .
-playwright install chromium   # ~300 MB, needed for PDF export only
 
-# 2. Set API key (only Groq is required)
+# 2. set API keys
 cp .env.example .env
-# Edit .env → set GROQ_API_KEYS=your_groq_api_key
-# JEV_API_KEY is optional — query routing works without it
+# edit .env — fill in GROQ_API_KEYS (comma-separated) and JEV_API_KEY
 
-# 3. Run
-python app.py
-# API + frontend → http://localhost:8000
+# 3. start the server
+uvicorn app:app --reload
+
+# 4. open http://localhost:8000
+```
+
+### Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GROQ_API_KEYS` | Yes | Comma-separated Groq API keys (key rotation built in) |
+| `JEV_API_KEY` | No | TypeSafe AI key for Jev validation scoring |
+
+---
+
+## How it works
+
+```
+User query / uploaded file
+        │
+        ▼
+   LLM (Groq)              ← spec generation only; never sees uploaded data
+   writes a JSON Spec
+        │
+        ▼
+   Generation Engine        ← pure Python; no ML needed
+   (GenerationPipeline)
+   → sequence, uuid, money, categorical, faker, expr, conditional, …
+   → relational: FK graph resolved in dependency order
+   → documents: Jinja2 templates → ReportLab PDFs
+        │
+        ▼
+   Validators               ← every rule checked; score returned
+   Evaluators               ← fidelity, utility, privacy metrics
+        │
+        ▼
+   Artifacts/temp/<run_id>/ ← CSV / JSON / PDF files + scores JSON
+```
+
+### Data Mode (upload path)
+
+```
+User CSV
+   │
+   ▼
+Profile & fit CopulaFitter (scipy + pandas)
+   │
+   ▼
+Draw n_rows synthetic rows
+   │
+   ▼
+Apply realism (missing values, outliers, noise, correlation adjustment)
+   │
+   ▼
+Artifacts/temp/<run_id>/synthesised_data.csv
+```
+
+### ML Lab
+
+```
+Data source (describe query → GenerationPipeline, OR uploaded CSV)
+   │
+   ▼
+Plant target column via logistic/linear function of driver columns + label noise
+   │
+   ▼
+Stratified train/test split
+   │
+   ▼
+RandomForest ML check → AUC or R² vs naive baseline
+   │
+   ▼
+Export: train.csv, test.csv, start_here.py, DATA_CARD.md, run_metadata.json
 ```
 
 ---
 
-## Running tests
+## Models
+
+All models are served through the **Groq Cloud API** (`groq` Python SDK). No model weights are downloaded locally.
+
+| Model ID | Params | Open-weight | Access | Used for | License |
+|----------|--------|-------------|--------|----------|---------|
+| `openai/gpt-oss-120b` | 120 B | Yes | Groq API | Spec generation (primary) | Apache 2.0 |
+| `openai/gpt-oss-20b` | 20 B | Yes | Groq API | Spec generation (backup) | Apache 2.0 |
+| `jev-1` | — | No | TypeSafe AI API | Validation scoring | Proprietary |
+
+**Bake-off results** (`docs/model_bakeoff.md`):
+
+| Model | Valid/5 | Avg latency |
+|-------|---------|-------------|
+| `openai/gpt-oss-120b` | 5/5 | 2.1 s |
+| `openai/gpt-oss-20b` | 4/5 | 1.6 s |
+
+Primary model was chosen for reliability; backup kicks in automatically on rate-limit or timeout.
+
+> License links to verify: [openai/gpt-oss-120b on HuggingFace](https://huggingface.co/openai/gpt-oss-120b) · [openai/gpt-oss-20b on HuggingFace](https://huggingface.co/openai/gpt-oss-20b)
+
+---
+
+## API Reference
+
+Start the server and visit **`http://localhost:8000/docs`** for the interactive OpenAPI docs.
+
+Key endpoints:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/generate` | Generate tabular, relational, or document data |
+| `POST` | `/api/upload` | Upload a CSV for Data Mode |
+| `POST` | `/api/runs/{id}/generate-dm` | Synthesise from uploaded data |
+| `GET`  | `/api/runs/{id}/profile` | Column profiles and correlation matrix |
+| `POST` | `/api/ml/generate` | Run ML Lab pipeline |
+| `GET`  | `/api/runs/{id}/scores` | Scorecard (validity, fidelity, utility, privacy) |
+| `GET`  | `/api/runs/{id}/export` | Download CSV / JSON / SQL / PDF |
+| `POST` | `/api/runs/{id}/save` | Move run from temp to saved |
+| `GET`  | `/api/config` | Public config (caps, weights, module flags) |
+| `GET`  | `/api/health` | Health check |
+
+---
+
+## Running Tests
 
 ```bash
-pytest                        # 29 tests
-python scripts/check_no_hardcoding.py
-bash scripts/smoke.sh
+pytest                        # all 84 tests
+pytest tests/unit/            # unit tests only
+pytest --cov=hackdata         # with coverage
+```
+
+Additional checks:
+
+```bash
+python scripts/check_no_hardcoding.py   # no bare strings/numbers in source
+bash scripts/smoke.sh                   # full demo path end-to-end
 ```
 
 ---
 
-## Architecture overview
+## Project Structure
 
 ```
-Browser → app.py + api/routes/ → modules/ → pipeline/
-                                                 ↓
-           components/ (SpecBuilder, DataGenerator, DataValidator, Evaluator, …)
-                                                 ↓
-           cloud/ (llm_client.py — groq SDK only)   utils/ (seed, hash, money, …)
-                                                 ↓
-           constants/ (all fixed values)   entity/ (typed contracts)
+hackdata/
+  constants/     — all literals: paths, thresholds, messages, model IDs
+  entity/        — typed dataclasses and Pydantic models
+  components/    — reusable logic (profiler, ML checker, copula, evaluators)
+  pipeline/      — orchestrated end-to-end flows
+  utils/         — shared helpers
+  exception/     — HackDataException wrapper
+  logging/       — logger setup
+  cloud/         — LLM client, key pool, cache, offline fallback
+
+api/
+  routes/        — FastAPI routers (one file per domain)
+  schemas.py     — Pydantic request/response models
+
+frontend/
+  index.html     — Alpine.js SPA (no build step)
+  js/api.js      — fetch wrapper; all network calls go here
+
+Artifacts/
+  temp/          — active runs (last 10 kept)
+  saved/         — runs the user explicitly saved
 ```
 
-- `hackdata/cloud/llm_client.py` — the only file that calls the LLM; uses the official `groq` SDK.
-- `hackdata/components/spec_builder.py` — asks the LLM to produce a spec from the user's query.
-- `hackdata/constants/llm.py` — model IDs, timeout, fallback chain (all open-weight, all Groq).
-- No key, URL or model name appears anywhere except `constants/llm.py` and `.env`.
+---
+
+## Limits
+
+| Resource | Cap |
+|----------|-----|
+| Upload size | 10 MB |
+| Synthetic rows (Data Mode) | 50 000 |
+| Invoice PDFs per run | 50 |
+| RAM | 8 GB |
+| GPU | None required |
+
+---
+
+## Security Notes
+
+- Uploaded files are written only to the run's own temp folder; they are **never sent to any external API**.
+- API keys are loaded from `.env` (excluded from git); see `.gitignore`.
+- All user inputs validated with Pydantic v2 models before processing.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Third-party dependency licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
