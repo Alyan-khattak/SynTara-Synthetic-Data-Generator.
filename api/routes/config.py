@@ -20,11 +20,12 @@ router = APIRouter(prefix="/api", tags=["Config"])
 def get_config() -> ConfigResponse:
     """Return public engine constants for frontend alignment."""
     try:
-        max_mb = data_mode.DM_MAX_UPLOAD_BYTES // (1024 * 1024)
+        max_mb = api_const.MAX_UPLOAD_BYTES // (1024 * 1024)
         return ConfigResponse(
             preview_rows=api_const.API_PREVIEW_ROWS,
             max_rows=gen_const.GEN_MAX_ROWS_PER_TABLE,
             max_upload_mb=max_mb,
+            dm_max_synth_rows=data_mode.DM_MAX_SYNTH_ROWS,
             score_weights=eval_const.EVAL_WEIGHTS,
             generators=list(spec_const.SPEC_GENERATORS),
             modules=[

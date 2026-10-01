@@ -131,6 +131,23 @@ export async function regenerateData(runId) {
 }
 
 /**
+ * Generate synthetic data from an already-uploaded CSV (Step A).
+ * @param {string} runId
+ * @param {object} settings — { n_rows, seed, missing_rate, outlier_rate, noise_level, correlation_adjustment }
+ */
+export async function generateDM(runId, settings) {
+  return apiFetch(`/runs/${runId}/generate-dm`, { method: "POST", body: JSON.stringify(settings) });
+}
+
+/**
+ * Fetch column profile + relationship matrix for a run (Steps C + D).
+ * @param {string} runId
+ */
+export async function getProfile(runId) {
+  return apiFetch(`/runs/${runId}/profile`);
+}
+
+/**
  * Uploads a file for Data Mode synthesis.
  * @param {File} file
  */

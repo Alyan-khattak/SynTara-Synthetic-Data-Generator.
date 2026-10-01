@@ -238,7 +238,7 @@
 
   <!-- Alpine state factory — must be defined before Alpine boots -->
   <script type="module">
-    import { getConfig, generateData, getRunScores, listRuns, saveRun, downloadExport, uploadDataset, regenerateData, downloadTableCsv, getRunSchema } from './js/api.js';
+    import { getConfig, generateData, getRunScores, listRuns, saveRun, downloadExport, uploadDataset, regenerateData, downloadTableCsv, getRunSchema, generateDM, getProfile } from './js/api.js';
     import { STRINGS } from './js/strings.js';
 
     // IMP: window.appState() is called by Alpine's x-data once the DOM is ready.
@@ -287,6 +287,14 @@
         schemaMermaid: '',
         schemaError: '',
 
+        // ── Data Mode state (Steps A-D) ──────────────────────────────────
+        dmUploadState: 'idle',        // 'idle' | 'uploading' | 'ready' | 'generating' | 'done' | 'error'
+        dmUpload: null,               // upload response: {run_id, filename, n_rows, n_cols, col_types, uploaded_preview}
+        dmSettings: { n_rows: null, seed: '', missing_rate: 0, outlier_rate: 0, noise_level: 0, correlation_adjustment: 0 },
+        dmActiveTab: 'preview',       // 'preview' | 'analysis'
+        dmProfile: null,              // profile API response
+        dmProfileState: 'idle',       // 'idle' | 'loading' | 'done' | 'error'
+
         // ── Theme & language ──────────────────────────────────────────────
         darkMode: false,
         lang: 'en',                 // 'en' | 'ur'
@@ -318,6 +326,30 @@
             back: '← Back', get_started: 'Get Started',
             landing_headline: 'Generate Realistic Synthetic Data',
             landing_sub: 'Tabular · Relational · Documents · Privacy-Safe',
+            // Data Mode Step A/B/C/D strings
+            dm_uploaded_panel: 'Uploaded Data',
+            dm_rows_label: 'Rows to generate',
+            dm_generate_btn: 'Generate Synthetic Data',
+            dm_realism_title: 'Realism Settings',
+            dm_missing_label: 'Missing values %',
+            dm_missing_help: 'Randomly set this fraction of cells to blank (MCAR)',
+            dm_outlier_label: 'Outliers %',
+            dm_outlier_help: 'Push this fraction of numeric rows beyond 3.5 standard deviations',
+            dm_noise_label: 'Noise level',
+            dm_noise_help: 'Add Gaussian noise scaled as a fraction of each column\'s std',
+            dm_corr_label: 'Correlation adjustment',
+            dm_corr_help: 'Positive strengthens column relationships; negative weakens them',
+            dm_analysis_tab: 'Analysis',
+            dm_analysis_loading: 'Computing column profiles…',
+            dm_top_relationships: 'Top Relationships',
+            dm_col_profile: 'Column Profile',
+            dm_heatmap_title: 'Relationship Heatmap',
+            dm_original_heatmap: 'Original',
+            dm_synthetic_heatmap: 'Synthetic',
+            dm_mad_label: 'Mean relationship difference (original vs synthetic):',
+            dm_findings_title: 'Findings',
+            dm_uploading: 'Uploading…',
+            dm_col_types_label: 'Column types',
           },
           ur: {
             tagline: 'مصنوعی ڈیٹا پلیٹ فارم',
@@ -344,6 +376,30 @@
             back: '← واپس', get_started: 'شروع کریں',
             landing_headline: 'حقیقت پسندانہ مصنوعی ڈیٹا بنائیں',
             landing_sub: 'ٹیبلر · ریلیشنل · دستاویزات · پرائیویسی محفوظ',
+            // Data Mode Step A/B/C/D strings (Urdu)
+            dm_uploaded_panel: 'اپلوڈ کردہ ڈیٹا',
+            dm_rows_label: 'قطاروں کی تعداد',
+            dm_generate_btn: 'مصنوعی ڈیٹا بنائیں',
+            dm_realism_title: 'حقیقت کی ترتیبات',
+            dm_missing_label: 'غائب اقدار %',
+            dm_missing_help: 'بے ترتیب خلیوں کو خالی کریں',
+            dm_outlier_label: 'آؤٹ لائر %',
+            dm_outlier_help: 'عددی قطاروں کو حد سے باہر کریں',
+            dm_noise_label: 'شور کی سطح',
+            dm_noise_help: 'گاوسی شور شامل کریں',
+            dm_corr_label: 'تعلق کی تبدیلی',
+            dm_corr_help: 'مثبت: تعلق مضبوط، منفی: کمزور',
+            dm_analysis_tab: 'تجزیہ',
+            dm_analysis_loading: 'کالم پروفائل بن رہی ہے…',
+            dm_top_relationships: 'بہترین تعلقات',
+            dm_col_profile: 'کالم پروفائل',
+            dm_heatmap_title: 'تعلق کا نقشہ',
+            dm_original_heatmap: 'اصلی',
+            dm_synthetic_heatmap: 'مصنوعی',
+            dm_mad_label: 'اوسط فرق (اصلی بمقابلہ مصنوعی):',
+            dm_findings_title: 'نتائج',
+            dm_uploading: 'اپلوڈ ہو رہا ہے…',
+            dm_col_types_label: 'کالم کی اقسام',
           },
         },
 
@@ -434,24 +490,78 @@
         },
 
         // ── Upload (Data Mode) ────────────────────────────────────────────
+        // Step A: upload only — no generation yet
         async uploadFile(event) {
           const file = event.target.files[0];
           if (!file) return;
-          this.runState = 'loading'; this.errorMsg = ''; this.currentRun = null; this.scores = null; this.activePreviewTable = null; this.previewPage = 0;
+          this.dmUploadState = 'uploading';
+          this.dmUpload = null;
+          this.errorMsg = '';
+          this.currentRun = null;
+          this.scores = null;
+          this.dmProfile = null;
+          this.dmProfileState = 'idle';
+          this.dmActiveTab = 'preview';
           if (this.scoresPollTimer) { clearInterval(this.scoresPollTimer); this.scoresPollTimer = null; }
           try {
             const res = await uploadDataset(file);
+            this.dmUpload = res;
+            // Default n_rows to uploaded row count
+            this.dmSettings.n_rows = res.n_rows;
+            this.dmUploadState = 'ready';
+          } catch (e) {
+            this.dmUploadState = 'error';
+            this.errorMsg = e.message || 'Upload failed.';
+          }
+        },
+
+        // Step A: Generate button click
+        async dmGenerate() {
+          if (!this.dmUpload || this.dmUploadState === 'generating') return;
+          this.dmUploadState = 'generating';
+          this.errorMsg = '';
+          this.currentRun = null;
+          this.scores = null;
+          this.runState = 'loading';
+          this.dmProfile = null;
+          this.dmProfileState = 'idle';
+          if (this.scoresPollTimer) { clearInterval(this.scoresPollTimer); this.scoresPollTimer = null; }
+          try {
+            const settings = {
+              n_rows: this.dmSettings.n_rows || this.dmUpload.n_rows,
+              seed: this.dmSettings.seed ? parseInt(this.dmSettings.seed) : null,
+              missing_rate: parseFloat(this.dmSettings.missing_rate) || 0,
+              outlier_rate: parseFloat(this.dmSettings.outlier_rate) || 0,
+              noise_level: parseFloat(this.dmSettings.noise_level) || 0,
+              correlation_adjustment: parseFloat(this.dmSettings.correlation_adjustment) || 0,
+            };
+            const res = await generateDM(this.dmUpload.run_id, settings);
             this.currentRun = {
-              run_id:  res.run_id,
+              run_id: res.run_id,
+              module: 'data_mode',
               preview: res.preview || { synthetic_data: [] },
             };
+            this.dmUploadState = 'done';
             this.runState = 'done';
-            // FIX 4: fetch scores via the canonical scores endpoint
             this.pollScores(res.run_id);
             try { this.runs = (await listRuns()).runs || []; } catch (_) {}
           } catch (e) {
+            this.dmUploadState = 'error';
             this.runState = 'error';
-            this.errorMsg = e.message || 'Failed to upload and generate data.';
+            this.errorMsg = e.message || 'Generation failed.';
+          }
+        },
+
+        // Steps C+D: load profile when Analysis tab clicked
+        async loadProfile(runId) {
+          if (this.dmProfileState === 'loading') return;
+          this.dmProfileState = 'loading';
+          try {
+            this.dmProfile = await getProfile(runId);
+            this.dmProfileState = 'done';
+          } catch (e) {
+            this.dmProfileState = 'error';
+            this.dmProfile = null;
           }
         },
 
@@ -1011,35 +1121,139 @@
                 </div>
               </div>
 
-              <!-- File upload (Data Mode) — large drop zone -->
-              <div x-show="currentModule === 'data_mode'" class="space-y-3" x-cloak>
-                <p class="text-sm font-medium mb-1"
-                   style="color: var(--ds-ink-muted);"
-                   :class="lang === 'ur' ? 'font-nastaliq' : ''"
-                   x-text="i18n[lang].upload_title"></p>
-                <!-- Label wraps hidden input to make the whole zone clickable -->
+              <!-- File upload (Data Mode) — Step A UI -->
+              <div x-show="currentModule === 'data_mode'" class="space-y-4" x-cloak>
+
+                <!-- Drop zone — always visible so user can re-upload -->
                 <label for="file-upload"
-                       class="upload-zone flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-10 cursor-pointer transition-all duration-200 group"
+                       class="upload-zone flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-all duration-200 group"
                        style="border-color: var(--ds-border);">
-                  <div class="w-14 h-14 rounded-2xl flex items-center justify-center transition-colors" style="background: var(--ds-canvas);">
-                    <svg class="w-7 h-7 transition-colors" style="color: var(--ds-ink-muted);"
+                  <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background: var(--ds-canvas);">
+                    <svg class="w-6 h-6" style="color: var(--ds-ink-muted);"
                          fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                     </svg>
                   </div>
                   <div class="text-center">
-                    <p class="text-sm font-medium"
-                       style="color: var(--ds-ink);"
+                    <p class="text-sm font-medium" style="color: var(--ds-ink);"
                        :class="lang === 'ur' ? 'font-nastaliq' : ''"
-                       x-text="i18n[lang].upload_hint"></p>
+                       x-text="dmUploadState === 'uploading' ? i18n[lang].dm_uploading : (dmUpload ? dmUpload.filename : i18n[lang].upload_hint)"></p>
                     <p class="text-xs mt-1" style="color: var(--ds-ink-muted);">
                       CSV only · Max <span x-text="config.max_upload_mb || 10"></span> MB
                     </p>
                   </div>
-                  <!-- sr-only hides the default file input; label click triggers it -->
                   <input type="file" id="file-upload" accept=".csv"
                          @change="uploadFile($event)" class="sr-only" />
                 </label>
+
+                <!-- Uploaded data panel — shown once file is ready -->
+                <template x-if="dmUpload && (dmUploadState === 'ready' || dmUploadState === 'generating' || dmUploadState === 'done' || dmUploadState === 'error')">
+                  <div class="rounded-xl p-4 space-y-3" style="background: var(--ds-canvas); border: 1px solid var(--ds-border);">
+                    <!-- File info -->
+                    <div class="flex flex-wrap gap-4 text-xs" style="color: var(--ds-ink-muted);">
+                      <span>📄 <strong x-text="dmUpload.filename"></strong></span>
+                      <span x-text="dmUpload.n_rows + ' rows'"></span>
+                      <span x-text="dmUpload.n_cols + ' columns'"></span>
+                    </div>
+
+                    <!-- Column types -->
+                    <div class="flex flex-wrap gap-1">
+                      <template x-for="[col, type] in Object.entries(dmUpload.col_types || {})" :key="col">
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                              style="background: var(--ds-border); color: var(--ds-ink-muted);"
+                              x-text="col + ' (' + type + ')'"></span>
+                      </template>
+                    </div>
+
+                    <!-- Preview of first 20 uploaded rows -->
+                    <div x-show="dmUpload.uploaded_preview && dmUpload.uploaded_preview.length" class="overflow-x-auto">
+                      <p class="text-xs font-semibold mb-1" style="color: var(--ds-ink-muted);"
+                         x-text="i18n[lang].dm_uploaded_panel + ' — first ' + (dmUpload.uploaded_preview || []).length + ' rows'"></p>
+                      <table class="ds-table text-xs w-full">
+                        <thead>
+                          <tr>
+                            <template x-for="col in Object.keys((dmUpload.uploaded_preview || [{}])[0] || {})" :key="col">
+                              <th class="px-2 py-1 text-left font-semibold" x-text="col"></th>
+                            </template>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <template x-for="(row, ri) in (dmUpload.uploaded_preview || [])" :key="ri">
+                            <tr>
+                              <template x-for="col in Object.keys(row)" :key="col">
+                                <td class="px-2 py-1" x-text="row[col] ?? ''"></td>
+                              </template>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <!-- Rows to generate + seed -->
+                    <div class="flex flex-wrap gap-3 items-end">
+                      <div>
+                        <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted);"
+                               :class="lang === 'ur' ? 'font-nastaliq text-sm' : ''"
+                               x-text="i18n[lang].dm_rows_label"></label>
+                        <input type="number" x-model.number="dmSettings.n_rows"
+                               :min="1" :max="config.dm_max_synth_rows || 50000"
+                               class="ds-input w-28" />
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted);"
+                               x-text="i18n[lang].seed_label"></label>
+                        <input type="number" x-model="dmSettings.seed" placeholder="random" class="ds-input w-28" />
+                      </div>
+                    </div>
+
+                    <!-- Step B: Realism settings (collapsible) -->
+                    <details class="rounded-lg" style="border: 1px solid var(--ds-border);">
+                      <summary class="px-3 py-2 cursor-pointer text-xs font-semibold select-none"
+                               style="color: var(--ds-ink-muted);"
+                               x-text="i18n[lang].dm_realism_title"></summary>
+                      <div class="px-3 pb-3 space-y-3">
+                        <!-- Missing rate -->
+                        <div>
+                          <div class="flex justify-between items-center">
+                            <label class="text-xs font-medium" style="color: var(--ds-ink-muted);"
+                                   x-text="i18n[lang].dm_missing_label + ': ' + (parseFloat(dmSettings.missing_rate)*100).toFixed(0) + '%'"></label>
+                          </div>
+                          <input type="range" x-model="dmSettings.missing_rate" min="0" max="0.5" step="0.01" class="w-full mt-1" />
+                          <p class="text-xs mt-0.5" style="color: var(--ds-ink-muted);" x-text="i18n[lang].dm_missing_help"></p>
+                        </div>
+                        <!-- Outlier rate -->
+                        <div>
+                          <label class="text-xs font-medium" style="color: var(--ds-ink-muted);"
+                                 x-text="i18n[lang].dm_outlier_label + ': ' + (parseFloat(dmSettings.outlier_rate)*100).toFixed(0) + '%'"></label>
+                          <input type="range" x-model="dmSettings.outlier_rate" min="0" max="0.2" step="0.01" class="w-full mt-1" />
+                          <p class="text-xs mt-0.5" style="color: var(--ds-ink-muted);" x-text="i18n[lang].dm_outlier_help"></p>
+                        </div>
+                        <!-- Noise level -->
+                        <div>
+                          <label class="text-xs font-medium" style="color: var(--ds-ink-muted);"
+                                 x-text="i18n[lang].dm_noise_label + ': ' + parseFloat(dmSettings.noise_level).toFixed(2)"></label>
+                          <input type="range" x-model="dmSettings.noise_level" min="0" max="1" step="0.05" class="w-full mt-1" />
+                          <p class="text-xs mt-0.5" style="color: var(--ds-ink-muted);" x-text="i18n[lang].dm_noise_help"></p>
+                        </div>
+                        <!-- Correlation adjustment -->
+                        <div>
+                          <label class="text-xs font-medium" style="color: var(--ds-ink-muted);"
+                                 x-text="i18n[lang].dm_corr_label + ': ' + parseFloat(dmSettings.correlation_adjustment).toFixed(2)"></label>
+                          <input type="range" x-model="dmSettings.correlation_adjustment" min="-1" max="1" step="0.05" class="w-full mt-1" />
+                          <p class="text-xs mt-0.5" style="color: var(--ds-ink-muted);" x-text="i18n[lang].dm_corr_help"></p>
+                        </div>
+                      </div>
+                    </details>
+
+                    <!-- Generate button -->
+                    <button @click="dmGenerate()"
+                            :disabled="dmUploadState === 'generating'"
+                            class="ds-btn-primary w-full py-2 rounded-lg text-sm font-medium"
+                            :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                            x-text="dmUploadState === 'generating' ? i18n[lang].generating : i18n[lang].dm_generate_btn">
+                    </button>
+                  </div>
+                </template>
               </div>
             </div>
 
@@ -1151,6 +1365,16 @@
                 : 'background: var(--ds-surface); color: var(--ds-ink-muted); border-color: var(--ds-border);'"
               @click="activeResultTab = 'schema'; if (schemaState === 'idle') loadSchema(currentRun.run_id)">
               Schema
+            </button>
+            <!-- Analysis tab — only for Data Mode runs (Steps C+D) -->
+            <button x-show="currentRun && currentRun.module === 'data_mode'"
+              class="px-4 py-1.5 text-xs font-semibold rounded-lg border transition-colors focus:outline-none"
+              :style="activeResultTab === 'analysis'
+                ? 'background: var(--ds-primary); color: #fff; border-color: var(--ds-primary);'
+                : 'background: var(--ds-surface); color: var(--ds-ink-muted); border-color: var(--ds-border);'"
+              :class="lang === 'ur' ? 'font-nastaliq' : ''"
+              @click="activeResultTab = 'analysis'; if (dmProfileState === 'idle') loadProfile(currentRun.run_id)"
+              x-text="i18n[lang].dm_analysis_tab">
             </button>
           </div>
 
@@ -1362,6 +1586,172 @@
             </div>
 
           </div><!-- /schema tab -->
+
+          <!-- ── ANALYSIS TAB (Steps C+D) ──────────────────────────── -->
+          <div x-show="activeResultTab === 'analysis' && currentRun && currentRun.module === 'data_mode'">
+
+            <!-- Loading -->
+            <div x-show="dmProfileState === 'loading'" class="py-10 text-center text-sm" style="color: var(--ds-ink-muted);"
+                 :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                 x-text="i18n[lang].dm_analysis_loading"></div>
+
+            <!-- Error -->
+            <div x-show="dmProfileState === 'error'" class="py-8 text-center text-sm" style="color: #c0392b;">
+              Failed to load analysis.
+            </div>
+
+            <template x-if="dmProfileState === 'done' && dmProfile">
+              <div class="space-y-6">
+
+                <!-- Step D: MAD summary -->
+                <template x-if="dmProfile.matrix_mad !== null && dmProfile.matrix_mad !== undefined">
+                  <div class="p-3 rounded-lg text-sm" style="background: var(--ds-canvas); border: 1px solid var(--ds-border);">
+                    <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].dm_mad_label"></span>
+                    <strong x-text="' ' + dmProfile.matrix_mad"></strong>
+                    <span x-show="parseFloat(dmSettings.missing_rate) > 0 || parseFloat(dmSettings.outlier_rate) > 0 || parseFloat(dmSettings.noise_level) > 0"
+                          class="ml-2 text-xs" style="color: var(--ds-ink-muted);">
+                      (realism settings active — differences expected)
+                    </span>
+                  </div>
+                </template>
+
+                <!-- Findings -->
+                <div x-show="dmProfile.original && dmProfile.original.findings && dmProfile.original.findings.length">
+                  <h3 class="text-sm font-semibold mb-2" style="color: var(--ds-ink);"
+                      :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                      x-text="i18n[lang].dm_findings_title"></h3>
+                  <ul class="space-y-1">
+                    <template x-for="(f, fi) in (dmProfile.original.findings || [])" :key="fi">
+                      <li class="text-xs px-3 py-1.5 rounded" style="background: var(--ds-canvas); border: 1px solid var(--ds-border);"
+                          x-text="f"></li>
+                    </template>
+                  </ul>
+                </div>
+
+                <!-- Heatmaps: original + synthetic side by side (Step D) -->
+                <div>
+                  <h3 class="text-sm font-semibold mb-3" style="color: var(--ds-ink);"
+                      :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                      x-text="i18n[lang].dm_heatmap_title"></h3>
+                  <div class="flex flex-wrap gap-6">
+                    <!-- Original heatmap -->
+                    <template x-if="dmProfile.original && dmProfile.original.matrix && dmProfile.original.matrix.length">
+                      <div>
+                        <p class="text-xs font-medium mb-1" style="color: var(--ds-ink-muted);"
+                           x-text="i18n[lang].dm_original_heatmap"></p>
+                        <div class="overflow-x-auto">
+                          <div :style="'display:grid; grid-template-columns: repeat(' + dmProfile.original.columns.length + ', minmax(28px,1fr)); gap:1px;'">
+                            <template x-for="(row, ri) in dmProfile.original.matrix" :key="'o'+ri">
+                              <template x-for="(cell, ci) in row" :key="'oc'+ci">
+                                <div :title="dmProfile.original.columns[ri] + ' vs ' + dmProfile.original.columns[ci] + ': ' + (cell !== null ? cell.toFixed(2) : 'N/A')"
+                                     :style="'width:26px;height:26px;border-radius:3px;background:' + (cell !== null ? 'rgba(127,160,143,' + Math.min(1, cell) + ')' : 'var(--ds-border)') + ';'">
+                                </div>
+                              </template>
+                            </template>
+                          </div>
+                          <!-- Column labels -->
+                          <div class="flex mt-1" style="gap:1px;">
+                            <template x-for="col in dmProfile.original.columns" :key="'ol'+col">
+                              <div class="text-xs truncate" style="width:26px; color: var(--ds-ink-muted); writing-mode: vertical-rl; transform: rotate(180deg); max-height: 60px;" x-text="col"></div>
+                            </template>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Synthetic heatmap (Step D) -->
+                    <template x-if="dmProfile.synthetic && dmProfile.synthetic.matrix && dmProfile.synthetic.matrix.length">
+                      <div>
+                        <p class="text-xs font-medium mb-1" style="color: var(--ds-ink-muted);"
+                           x-text="i18n[lang].dm_synthetic_heatmap"></p>
+                        <div class="overflow-x-auto">
+                          <div :style="'display:grid; grid-template-columns: repeat(' + dmProfile.synthetic.columns.length + ', minmax(28px,1fr)); gap:1px;'">
+                            <template x-for="(row, ri) in dmProfile.synthetic.matrix" :key="'s'+ri">
+                              <template x-for="(cell, ci) in row" :key="'sc'+ci">
+                                <div :title="dmProfile.synthetic.columns[ri] + ' vs ' + dmProfile.synthetic.columns[ci] + ': ' + (cell !== null ? cell.toFixed(2) : 'N/A')"
+                                     :style="'width:26px;height:26px;border-radius:3px;background:' + (cell !== null ? 'rgba(127,160,143,' + Math.min(1, cell) + ')' : 'var(--ds-border)') + ';'">
+                                </div>
+                              </template>
+                            </template>
+                          </div>
+                          <div class="flex mt-1" style="gap:1px;">
+                            <template x-for="col in dmProfile.synthetic.columns" :key="'sl'+col">
+                              <div class="text-xs truncate" style="width:26px; color: var(--ds-ink-muted); writing-mode: vertical-rl; transform: rotate(180deg); max-height: 60px;" x-text="col"></div>
+                            </template>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                  <template x-if="dmProfile.original && dmProfile.original.matrix_note">
+                    <p class="text-xs mt-2" style="color: var(--ds-ink-muted);" x-text="dmProfile.original.matrix_note"></p>
+                  </template>
+                </div>
+
+                <!-- Top relationships table -->
+                <div x-show="dmProfile.original && dmProfile.original.relationships && dmProfile.original.relationships.length">
+                  <h3 class="text-sm font-semibold mb-2" style="color: var(--ds-ink);"
+                      :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                      x-text="i18n[lang].dm_top_relationships"></h3>
+                  <div class="overflow-x-auto">
+                    <table class="ds-table text-xs w-full">
+                      <thead>
+                        <tr>
+                          <th class="px-2 py-1 text-left">Column A</th>
+                          <th class="px-2 py-1 text-left">Column B</th>
+                          <th class="px-2 py-1 text-left">Measure</th>
+                          <th class="px-2 py-1 text-right">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="(rel, ri) in (dmProfile.original.relationships || []).filter(r => r.value !== null).sort((a,b) => Math.abs(b.value)-Math.abs(a.value)).slice(0,15)" :key="ri">
+                          <tr>
+                            <td class="px-2 py-1" x-text="rel.col_a"></td>
+                            <td class="px-2 py-1" x-text="rel.col_b"></td>
+                            <td class="px-2 py-1" x-text="rel.measure"></td>
+                            <td class="px-2 py-1 text-right font-mono" x-text="rel.value !== null ? rel.value.toFixed(3) : '—'"></td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Column profile table -->
+                <div>
+                  <h3 class="text-sm font-semibold mb-2" style="color: var(--ds-ink);"
+                      :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                      x-text="i18n[lang].dm_col_profile"></h3>
+                  <div class="overflow-x-auto">
+                    <table class="ds-table text-xs w-full">
+                      <thead>
+                        <tr>
+                          <th class="px-2 py-1 text-left">Column</th>
+                          <th class="px-2 py-1 text-left">Type</th>
+                          <th class="px-2 py-1 text-right">Missing%</th>
+                          <th class="px-2 py-1 text-right">Unique</th>
+                          <th class="px-2 py-1 text-right">Min/Max or Top</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="(p, pi) in (dmProfile.original.profiles || [])" :key="pi">
+                          <tr>
+                            <td class="px-2 py-1 font-medium" x-text="p.name + (p.is_id_like ? ' 🔑' : '') + (p.is_constant ? ' ⚠' : '')"></td>
+                            <td class="px-2 py-1" x-text="p.type"></td>
+                            <td class="px-2 py-1 text-right" x-text="p.missing_pct + '%'"></td>
+                            <td class="px-2 py-1 text-right" x-text="p.n_unique"></td>
+                            <td class="px-2 py-1 text-right font-mono"
+                                x-text="p.min !== undefined ? (p.min + ' / ' + p.max) : (p.date_min ? p.date_min + ' – ' + p.date_max : (p.top_categories ? p.top_categories.slice(0,3).map(c=>c.value).join(', ') : ''))"></td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            </template>
+          </div><!-- /analysis tab -->
 
         </section>
 

@@ -50,3 +50,11 @@ MSG_SCHEMA_RUN_NOT_FOUND: str = "Run '{run_id}' not found."
 MSG_MESSINESS_RATE_TOO_HIGH: str = (
     "Rate {rate:.2f} exceeds the maximum allowed {max_rate:.2f} for setting '{setting}'."
 )
+
+# data mode — upload / generate / profile
+MSG_DM_ROWS_TOO_HIGH: str = "n_rows {n} exceeds the maximum allowed {max_rows}."
+MSG_DM_ROWS_TOO_LOW: str = "n_rows must be at least 1."
+MSG_DM_UPLOAD_NOT_FOUND: str = "Upload '{run_id}' not found."
+MSG_DM_NOT_ENOUGH_DATA: str = "not enough data"
+MSG_DM_CONSTANT_COL: str = "constant"
+MSG_DM_PROFILE_COLS_CAPPED: str = "Showing first {cap} of {total} columns in heatmap."

@@ -53,6 +53,11 @@ class DataModePipeline:
         run_id: Optional[str] = None,
         n_synthetic_rows: Optional[int] = None,
         master_seed: Optional[int] = None,
+        # Step B realism settings — all default to 0 (no effect)
+        missing_rate: float = 0.0,
+        outlier_rate: float = 0.0,
+        noise_level: float = 0.0,
+        correlation_adjustment: float = 0.0,
     ):
         self.data_path = data_path
         # AV-06: use the shared timestamp format constant instead of a literal format string.
@@ -60,6 +65,28 @@ class DataModePipeline:
         self.n_synthetic_rows = n_synthetic_rows
         # AV-01: store master seed so _sample_synthetic_data can derive per-column RNGs.
         self.master_seed: int = master_seed if master_seed is not None else new_master_seed()
+
+        # Step B: validate and store realism settings
+        from hackdata.constants import data_mode as dm_const, messages as msg_const
+        for rate, cap, name in [
+            (missing_rate,          dm_const.DM_MAX_MISSING_RATE,  "missing_rate"),
+            (outlier_rate,          dm_const.DM_MAX_OUTLIER_RATE,  "outlier_rate"),
+            (noise_level,           dm_const.DM_MAX_NOISE_LEVEL,   "noise_level"),
+        ]:
+            if rate > cap:
+                raise ValueError(
+                    msg_const.MSG_MESSINESS_RATE_TOO_HIGH.format(
+                        rate=rate, max_rate=cap, setting=name
+                    )
+                )
+        if abs(correlation_adjustment) > dm_const.DM_MAX_CORR_ADJ:
+            raise ValueError(
+                f"correlation_adjustment {correlation_adjustment:.2f} must be in [-1, 1]"
+            )
+        self.missing_rate = missing_rate
+        self.outlier_rate = outlier_rate
+        self.noise_level = noise_level
+        self.correlation_adjustment = correlation_adjustment
 
         self.artifact_dir = os.path.join(paths.ARTIFACTS_TEMP_DIR, self.run_id)
         ensure_dir(self.artifact_dir)
@@ -123,6 +150,62 @@ class DataModePipeline:
         except Exception as e:
             raise HackDataException(e, sys)
 
+    def _apply_realism(
+        self,
+        df: pd.DataFrame,
+        train_df: pd.DataFrame,
+        protected_cols: set,
+    ) -> pd.DataFrame:
+        """Apply Step-B realism settings (missing / outlier / noise) post-sampling.
+
+        All effects are seeded from self.master_seed for reproducibility.
+        Protected columns (id-like, masked sensitive) are never touched.
+        """
+        from hackdata.constants import data_mode as dm_const
+        from hackdata.components.data_profiler import _infer_col_type
+
+        if not any([self.missing_rate, self.outlier_rate, self.noise_level]):
+            return df  # nothing to do — fast path
+
+        out = df.copy()
+        rng = make_rng(self.master_seed, "realism", "global")
+
+        for col in out.columns:
+            if col in protected_cols:
+                continue
+            col_type = _infer_col_type(out[col], col)
+            n = len(out)
+
+            # MCAR null injection
+            if self.missing_rate > 0:
+                null_mask = rng.random(n) < self.missing_rate
+                out.loc[null_mask, col] = np.nan
+
+            if col_type == "numeric":
+                vals = pd.to_numeric(out[col], errors="coerce")
+                col_std = pd.to_numeric(train_df[col], errors="coerce").std() if col in train_df else vals.std()
+                if col_std == 0 or pd.isna(col_std):
+                    continue
+
+                # Gaussian noise: scale by fraction of train std
+                if self.noise_level > 0:
+                    noise = rng.normal(0, self.noise_level * col_std, n)
+                    out[col] = vals + noise
+
+                # Outlier injection: push selected rows beyond DM_OUTLIER_SIGMA std
+                if self.outlier_rate > 0:
+                    col_mean = pd.to_numeric(train_df[col], errors="coerce").mean() if col in train_df else vals.mean()
+                    outlier_mask = rng.random(n) < self.outlier_rate
+                    # Randomly above or below the mean
+                    directions = rng.choice([-1, 1], n)
+                    vals_arr = pd.to_numeric(out[col], errors="coerce").values.copy()
+                    vals_arr[outlier_mask] = (
+                        col_mean + directions[outlier_mask] * dm_const.DM_OUTLIER_SIGMA * col_std
+                    )
+                    out[col] = vals_arr
+
+        return out
+
     def run(self) -> DataModePipelineResult:
         """Executes the data-mode pipeline end-to-end."""
         try:
@@ -145,6 +228,29 @@ class DataModePipeline:
             # Derive table name from the uploaded file stem for use as RNG scope key.
             table_name = os.path.splitext(os.path.basename(self.data_path))[0]
 
+            # Step B: apply correlation_adjustment to copula matrix before sampling.
+            # Scale off-diagonal by (1 + adj) then repair to nearest PSD matrix.
+            # Formula: C'[i,j] = C[i,j] * (1 + adj)  for i≠j, then clip to [-1,1]
+            # and project to PSD via eigenvalue floor (same method as CopulaFitter).
+            if model and self.correlation_adjustment != 0.0 and "correlation" in model:
+                C = np.array(model["correlation"], dtype=float)
+                n_c = C.shape[0]
+                adj = self.correlation_adjustment
+                for i in range(n_c):
+                    for j in range(n_c):
+                        if i != j:
+                            C[i, j] = np.clip(C[i, j] * (1.0 + adj), -1.0, 1.0)
+                # Repair to PSD by flooring negative eigenvalues to epsilon
+                eigvals, eigvecs = np.linalg.eigh(C)
+                from hackdata.constants import data_mode as dm_const_inner
+                eigvals = np.maximum(eigvals, dm_const_inner.DM_COPULA_EIGEN_EPSILON)
+                C_repaired = eigvecs @ np.diag(eigvals) @ eigvecs.T
+                # Renormalize diagonal to exactly 1.0
+                d = np.sqrt(np.diag(C_repaired))
+                C_repaired = C_repaired / np.outer(d, d)
+                model = dict(model)
+                model["correlation"] = C_repaired
+
             # Step 2: Sample synthetic data
             synthetic_df = self._sample_synthetic_data(
                 train_df, model, n_synth, self.master_seed, table_name
@@ -159,6 +265,15 @@ class DataModePipeline:
                 logging.info(
                     messages.MSG_MASKED_COLUMNS.format(columns=masked_columns)
                 )
+
+            # Step B: apply realism settings post-masking.
+            # Masked and id-like columns are protected — never nulled or perturbed.
+            from hackdata.components.data_profiler import _infer_col_type
+            protected = set(masked_columns) | {
+                c for c in synthetic_df.columns
+                if _infer_col_type(synthetic_df[c], c) == "id-like"
+            }
+            synthetic_df = self._apply_realism(synthetic_df, train_df, protected)
 
             # Step 3b: Write synthetic CSV
             synthetic_csv_path = os.path.join(self.artifact_dir, paths.SYNTHETIC_DATA_FILE_NAME)
@@ -213,10 +328,18 @@ class DataModePipeline:
             meta_data = {
                 "run_id": self.run_id,
                 "mode": "data_mode",
+                "seed": self.master_seed,
                 "train_rows": len(train_df),
                 "holdout_rows": len(holdout_df),
                 "synthetic_rows": len(synthetic_df),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                # Step B: record realism settings for reproducibility
+                "realism": {
+                    "missing_rate": self.missing_rate,
+                    "outlier_rate": self.outlier_rate,
+                    "noise_level": self.noise_level,
+                    "correlation_adjustment": self.correlation_adjustment,
+                },
             }
             with open(meta_path, "w", encoding="utf-8") as f:
                 json.dump(meta_data, f, indent=2)

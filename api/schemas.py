@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel
 
 from hackdata.constants import api as api_const
+from hackdata.constants import data_mode as dm_const
 from hackdata.constants import documents as doc_const
 from hackdata.constants import evaluation as eval_const
 from hackdata.constants import generation as gen_const
@@ -63,6 +64,22 @@ class SaveRunRequest(BaseModel):
     """Body for POST /api/runs/{id}/save — move run from temp to saved."""
 
     run_id: str
+
+
+class DataModeGenerateRequest(BaseModel):
+    """Body for POST /api/runs/{run_id}/generate-dm (Step A).
+
+    Sent after the user reviews the uploaded-data panel and clicks Generate.
+    All noise settings default to 0 (no effect) per spec.
+    """
+
+    n_rows: Optional[int] = None          # None → use uploaded row count
+    seed: Optional[int] = None
+    # Step B realism settings (all default to 0 = no effect)
+    missing_rate: float = 0.0             # fraction of cells to null (MCAR)
+    outlier_rate: float = 0.0             # fraction of numeric rows to push beyond 3.5σ
+    noise_level: float = 0.0             # Gaussian noise as fraction of column std
+    correlation_adjustment: float = 0.0  # scale off-diagonal copula corr: -1..+1
 
 
 # ---------------- RESPONSE MODELS ----------------
@@ -139,7 +156,8 @@ class ConfigResponse(BaseModel):
 
     preview_rows: int                  # api_const.API_PREVIEW_ROWS
     max_rows: int                      # gen_const.GEN_MAX_ROWS_PER_TABLE
-    max_upload_mb: int                 # data_mode.DM_MAX_UPLOAD_BYTES // (1024*1024)
+    max_upload_mb: int                 # api_const.MAX_UPLOAD_BYTES // (1024*1024)
+    dm_max_synth_rows: int             # dm_const.DM_MAX_SYNTH_ROWS
     score_weights: Dict[str, float]    # eval_const.EVAL_WEIGHTS
     generators: List[str]              # list(spec_const.SPEC_GENERATORS)
     modules: List[str]                 # [MODULE_TABULAR, MODULE_RELATIONAL, MODULE_DOCUMENTS]

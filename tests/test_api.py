@@ -87,7 +87,10 @@ def test_upload_valid_csv():
     response = client.post("/api/upload", files=files)
     assert response.status_code == 200
     data = response.json()
-    assert "file_path" in data
+    assert "run_id" in data
+    assert "n_rows" in data
+    assert "col_types" in data
+    assert "uploaded_preview" in data
     assert data["size_bytes"] == len(csv_content)
 
 def test_export_endpoint():
