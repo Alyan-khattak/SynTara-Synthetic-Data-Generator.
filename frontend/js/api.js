@@ -148,6 +148,14 @@ export async function getProfile(runId) {
 }
 
 /**
+ * Run ML Lab pipeline (generate data, plant target, ML check).
+ * @param {object} body — MLLabRequest fields
+ */
+export async function generateML(body) {
+  return apiFetch("/ml/generate", { method: "POST", body: JSON.stringify(body) });
+}
+
+/**
  * Uploads a file for Data Mode synthesis.
  * @param {File} file
  */

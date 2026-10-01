@@ -161,3 +161,37 @@ class ConfigResponse(BaseModel):
     score_weights: Dict[str, float]    # eval_const.EVAL_WEIGHTS
     generators: List[str]              # list(spec_const.SPEC_GENERATORS)
     modules: List[str]                 # [MODULE_TABULAR, MODULE_RELATIONAL, MODULE_DOCUMENTS]
+
+
+# ---------------- ML LAB REQUEST / RESPONSE ----------------
+
+class MLLabRequest(BaseModel):
+    """Body for POST /api/ml/generate."""
+
+    source_type: str                              # 'describe' | 'upload'
+    query: Optional[str] = None                  # required for source_type='describe'
+    upload_run_id: Optional[str] = None          # required for source_type='upload'
+    target_col: str                              # column to predict
+    task_type: str                               # 'classification' | 'regression'
+    drivers: List[str] = []                      # driver columns (empty = auto)
+    signal_strength: float = 0.7
+    class_balance: float = 0.5
+    label_noise: float = 0.0
+    n_rows: int = gen_const.GEN_DEFAULT_N_ROWS
+    seed: Optional[int] = None
+    train_ratio: float = 0.8
+
+
+class MLLabResponse(BaseModel):
+    """Response from POST /api/ml/generate."""
+
+    run_id: str
+    source_type: str
+    task_type: str
+    target_col: str
+    train_rows: int
+    test_rows: int
+    seed: int
+    ml_check: dict
+    preview: List[dict]
+    message: Optional[str] = None

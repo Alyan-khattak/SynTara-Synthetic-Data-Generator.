@@ -16,4 +16,5 @@ MODE_DATA: str = "data"
 MODULE_TABULAR: str = "tabular"
 MODULE_RELATIONAL: str = "relational"
 MODULE_DOCUMENTS: str = "documents"
+MODULE_ML_LAB: str = "ml_lab"
 RANDOM_STATE: int = 42

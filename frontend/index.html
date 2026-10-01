@@ -294,6 +294,16 @@
         dmActiveTab: 'preview',       // 'preview' | 'analysis'
         dmProfile: null,              // profile API response
         dmProfileState: 'idle',       // 'idle' | 'loading' | 'done' | 'error'
+        // ── ML Lab state ─────────────────────────────────────────────────────
+        mlSource: 'describe',         // 'describe' | 'upload'
+        mlSettings: {
+          query: '', upload_run_id: '', target_col: 'target',
+          task_type: 'classification',
+          drivers: '', signal_strength: 0.7, class_balance: 0.5,
+          label_noise: 0.0, n_rows: 500, seed: '', train_ratio: 0.8,
+        },
+        mlState: 'idle',              // 'idle' | 'generating' | 'done' | 'error'
+        mlResult: null,               // MLLabResponse
 
         // ── Theme & language ──────────────────────────────────────────────
         darkMode: false,
@@ -304,7 +314,7 @@
           en: {
             tagline: 'Synthetic Data Platform',
             nav_tabular: 'Tabular', nav_relational: 'Relational',
-            nav_documents: 'Documents', nav_datamode: 'Data Mode',
+            nav_documents: 'Documents', nav_datamode: 'Data Mode', nav_ml_lab: 'ML Lab',
             generate_btn: 'Generate', upload_btn: 'Upload CSV',
             query_placeholder: 'Describe the data you want to generate...',
             rows_label: 'Rows', seed_label: 'Seed (optional)',
@@ -350,11 +360,42 @@
             dm_findings_title: 'Findings',
             dm_uploading: 'Uploading…',
             dm_col_types_label: 'Column types',
+            // ML Lab strings
+            ml_lab_title: 'ML Lab',
+            ml_lab_sub: 'Generate ML-ready data with planted signal',
+            ml_source_label: 'Data source',
+            ml_source_describe: 'Describe a dataset',
+            ml_source_upload: 'Use an uploaded CSV',
+            ml_query_placeholder: 'Describe the dataset for your ML task…',
+            ml_target_label: 'Target column name',
+            ml_target_help: 'Column the model should predict (created for describe source)',
+            ml_task_label: 'Task type',
+            ml_task_clf: 'Classification', ml_task_reg: 'Regression',
+            ml_signal_label: 'Signal strength',
+            ml_signal_help: 'How clearly drivers predict target (0 = noise, 1 = perfect)',
+            ml_drivers_label: 'Driver columns',
+            ml_drivers_help: 'Comma-separated column names (leave blank for auto)',
+            ml_balance_label: 'Class balance (classification)',
+            ml_balance_help: 'Fraction of rows in positive class',
+            ml_noise_label: 'Label noise',
+            ml_noise_help: 'Fraction of labels to flip / add noise (Step E)',
+            ml_rows_label: 'Rows',
+            ml_train_ratio_label: 'Train ratio',
+            ml_generate_btn: 'Generate ML Dataset',
+            ml_generating: 'Generating…',
+            ml_results_title: 'ML Check',
+            ml_score_label: 'Score',
+            ml_baseline_label: 'Naive baseline',
+            ml_gap_label: 'Gap',
+            ml_dl_train: 'Download train.csv',
+            ml_dl_test: 'Download test.csv',
+            ml_upload_run_label: 'Upload Run ID',
+            ml_upload_run_help: 'Run ID from a Data Mode or previous ML Lab upload',
           },
           ur: {
             tagline: 'مصنوعی ڈیٹا پلیٹ فارم',
             nav_tabular: 'ٹیبلر', nav_relational: 'ریلیشنل',
-            nav_documents: 'دستاویزات', nav_datamode: 'ڈیٹا موڈ',
+            nav_documents: 'دستاویزات', nav_datamode: 'ڈیٹا موڈ', nav_ml_lab: 'ایم ایل لیب',
             generate_btn: 'بنائیں', upload_btn: 'CSV اپلوڈ کریں',
             query_placeholder: 'جو ڈیٹا چاہیے اسے بیان کریں...',
             rows_label: 'قطاریں', seed_label: 'سیڈ (اختیاری)',
@@ -400,6 +441,37 @@
             dm_findings_title: 'نتائج',
             dm_uploading: 'اپلوڈ ہو رہا ہے…',
             dm_col_types_label: 'کالم کی اقسام',
+            // ML Lab strings (Urdu)
+            ml_lab_title: 'ایم ایل لیب',
+            ml_lab_sub: 'ایم ایل کے لیے ڈیٹا بنائیں',
+            ml_source_label: 'ڈیٹا ذریعہ',
+            ml_source_describe: 'ڈیٹاسیٹ بیان کریں',
+            ml_source_upload: 'CSV اپلوڈ کریں',
+            ml_query_placeholder: 'اپنے ML کام کے لیے ڈیٹاسیٹ بیان کریں…',
+            ml_target_label: 'ہدف کالم',
+            ml_target_help: 'جو کالم ماڈل نے پیش گوئی کرنی ہے',
+            ml_task_label: 'کام کی قسم',
+            ml_task_clf: 'درجہ بندی', ml_task_reg: 'ریگریشن',
+            ml_signal_label: 'سگنل طاقت',
+            ml_signal_help: '0 = شور، 1 = کامل سگنل',
+            ml_drivers_label: 'ڈرائیور کالم',
+            ml_drivers_help: 'کالم کے نام (خالی = خودکار)',
+            ml_balance_label: 'کلاس توازن',
+            ml_balance_help: 'مثبت کلاس کا تناسب',
+            ml_noise_label: 'لیبل شور',
+            ml_noise_help: 'لیبل پلٹنے کا تناسب',
+            ml_rows_label: 'قطاریں',
+            ml_train_ratio_label: 'تربیت تناسب',
+            ml_generate_btn: 'ML ڈیٹاسیٹ بنائیں',
+            ml_generating: 'بن رہا ہے…',
+            ml_results_title: 'ML جانچ',
+            ml_score_label: 'اسکور',
+            ml_baseline_label: 'بنیادی لائن',
+            ml_gap_label: 'فرق',
+            ml_dl_train: 'train.csv ڈاؤنلوڈ',
+            ml_dl_test: 'test.csv ڈاؤنلوڈ',
+            ml_upload_run_label: 'اپلوڈ رن ID',
+            ml_upload_run_help: 'ڈیٹا موڈ رن کا ID',
           },
         },
 
@@ -562,6 +634,38 @@
           } catch (e) {
             this.dmProfileState = 'error';
             this.dmProfile = null;
+          }
+        },
+
+        // ── ML Lab generate ───────────────────────────────────────────────
+        async mlGenerate() {
+          if (this.mlState === 'generating') return;
+          this.mlState = 'generating';
+          this.mlResult = null;
+          this.errorMsg = '';
+          try {
+            const s = this.mlSettings;
+            const body = {
+              source_type:      this.mlSource,
+              query:            this.mlSource === 'describe' ? s.query : null,
+              upload_run_id:    this.mlSource === 'upload'   ? s.upload_run_id : null,
+              target_col:       s.target_col,
+              task_type:        s.task_type,
+              drivers:          s.drivers ? s.drivers.split(',').map(d => d.trim()).filter(Boolean) : [],
+              signal_strength:  parseFloat(s.signal_strength) || 0.7,
+              class_balance:    parseFloat(s.class_balance)   || 0.5,
+              label_noise:      parseFloat(s.label_noise)     || 0.0,
+              n_rows:           parseInt(s.n_rows) || 500,
+              seed:             s.seed ? parseInt(s.seed) : null,
+              train_ratio:      parseFloat(s.train_ratio) || 0.8,
+            };
+            const { generateML } = await import('./js/api.js');
+            this.mlResult = await generateML(body);
+            this.mlState = 'done';
+            try { this.runs = (await listRuns()).runs || []; } catch (_) {}
+          } catch (e) {
+            this.errorMsg = e.message || 'ML Lab generation failed.';
+            this.mlState = 'error';
           }
         },
 
@@ -1034,6 +1138,18 @@
           <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].nav_datamode"></span>
         </button>
 
+        <!-- ML Lab — static sidebar item (not in config.modules) -->
+        <button
+          class="ds-nav-item focus:outline-none"
+          :class="currentModule === 'ml_lab' ? 'ds-active' : ''"
+          @click="selectModule('ml_lab')"
+          :aria-current="currentModule === 'ml_lab' ? 'page' : null">
+          <svg class="w-3.5 h-3.5 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+          <span :class="lang === 'ur' ? 'font-nastaliq' : ''" x-text="i18n[lang].nav_ml_lab"></span>
+        </button>
+
         <!-- Bottom utility links — desktop only -->
         <div class="ds-util-section hidden md:block">
           <button class="ds-util-item">
@@ -1083,8 +1199,8 @@
             <!-- Left: query textarea or upload zone -->
             <div class="flex-1 space-y-3 min-w-0">
 
-              <!-- Query input — hidden in data_mode -->
-              <div x-show="currentModule !== 'data_mode'" class="space-y-3">
+              <!-- Query input — hidden in data_mode and ml_lab -->
+              <div x-show="currentModule !== 'data_mode' && currentModule !== 'ml_lab'" class="space-y-3">
                 <label class="block font-semibold mb-1 ds-heading"
                        style="color: var(--ds-ink); font-size: 1.1rem;"
                        for="query-input">
@@ -1257,8 +1373,185 @@
               </div>
             </div>
 
-            <!-- Right: config panel — hidden in data_mode -->
-            <div x-show="currentModule !== 'data_mode'" class="lg:w-60 shrink-0">
+            <!-- ══════════ ML LAB PANEL ══════════ -->
+            <div x-show="currentModule === 'ml_lab'" class="space-y-4 w-full" x-cloak>
+
+              <!-- Header -->
+              <div>
+                <h2 class="font-bold text-lg ds-heading" :class="lang === 'ur' ? 'font-nastaliq text-2xl' : ''"
+                    x-text="i18n[lang].ml_lab_title" style="color: var(--ds-ink)"></h2>
+                <p class="text-xs mt-0.5" style="color: var(--ds-ink-muted)"
+                   :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                   x-text="i18n[lang].ml_lab_sub"></p>
+              </div>
+
+              <!-- Source selector -->
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color: var(--ds-ink-muted)"
+                   x-text="i18n[lang].ml_source_label"></p>
+                <div class="flex gap-2">
+                  <button @click="mlSource = 'describe'"
+                          :class="mlSource === 'describe' ? 'ds-btn-primary' : 'ds-btn-secondary'"
+                          class="text-xs px-3 py-1 rounded-md"
+                          x-text="i18n[lang].ml_source_describe"></button>
+                  <button @click="mlSource = 'upload'"
+                          :class="mlSource === 'upload' ? 'ds-btn-primary' : 'ds-btn-secondary'"
+                          class="text-xs px-3 py-1 rounded-md"
+                          x-text="i18n[lang].ml_source_upload"></button>
+                </div>
+              </div>
+
+              <!-- Describe source: query box -->
+              <div x-show="mlSource === 'describe'">
+                <label class="block text-xs font-medium mb-1" x-text="i18n[lang].ml_query_placeholder"
+                       style="color: var(--ds-ink-muted)"></label>
+                <textarea x-model="mlSettings.query" class="ds-input resize-none w-full" rows="3"
+                          :placeholder="i18n[lang].ml_query_placeholder"></textarea>
+              </div>
+
+              <!-- Upload source: run ID input -->
+              <div x-show="mlSource === 'upload'">
+                <label class="block text-xs font-medium mb-1" x-text="i18n[lang].ml_upload_run_label"
+                       style="color: var(--ds-ink-muted)"></label>
+                <input x-model="mlSettings.upload_run_id" class="ds-input w-full text-xs"
+                       :placeholder="i18n[lang].ml_upload_run_help" />
+              </div>
+
+              <!-- ML Settings -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg" style="background: var(--ds-canvas); border: 1px solid var(--ds-border)">
+                <!-- Target column -->
+                <div>
+                  <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted)"
+                         x-text="i18n[lang].ml_target_label"></label>
+                  <input x-model="mlSettings.target_col" class="ds-input w-full text-sm" placeholder="target" />
+                  <p class="text-xs mt-0.5" style="color: var(--ds-ink-muted)" x-text="i18n[lang].ml_target_help"></p>
+                </div>
+                <!-- Task type -->
+                <div>
+                  <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted)"
+                         x-text="i18n[lang].ml_task_label"></label>
+                  <select x-model="mlSettings.task_type" class="ds-input w-full text-sm">
+                    <option value="classification" x-text="i18n[lang].ml_task_clf"></option>
+                    <option value="regression" x-text="i18n[lang].ml_task_reg"></option>
+                  </select>
+                </div>
+                <!-- Signal strength -->
+                <div>
+                  <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted)"
+                         x-text="`${i18n[lang].ml_signal_label}: ${parseFloat(mlSettings.signal_strength).toFixed(2)}`"></label>
+                  <input type="range" x-model="mlSettings.signal_strength" min="0" max="1" step="0.05" class="w-full" />
+                  <p class="text-xs mt-0.5" style="color: var(--ds-ink-muted)" x-text="i18n[lang].ml_signal_help"></p>
+                </div>
+                <!-- Class balance -->
+                <div x-show="mlSettings.task_type === 'classification'">
+                  <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted)"
+                         x-text="`${i18n[lang].ml_balance_label}: ${parseFloat(mlSettings.class_balance).toFixed(2)}`"></label>
+                  <input type="range" x-model="mlSettings.class_balance" min="0.05" max="0.95" step="0.05" class="w-full" />
+                  <p class="text-xs mt-0.5" style="color: var(--ds-ink-muted)" x-text="i18n[lang].ml_balance_help"></p>
+                </div>
+                <!-- Rows -->
+                <div>
+                  <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted)"
+                         x-text="i18n[lang].ml_rows_label"></label>
+                  <input type="number" x-model="mlSettings.n_rows" class="ds-input w-full text-sm" min="20" max="100000" step="100" />
+                </div>
+                <!-- Train ratio -->
+                <div>
+                  <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted)"
+                         x-text="`${i18n[lang].ml_train_ratio_label}: ${parseFloat(mlSettings.train_ratio).toFixed(2)}`"></label>
+                  <input type="range" x-model="mlSettings.train_ratio" min="0.5" max="0.95" step="0.05" class="w-full" />
+                </div>
+                <!-- Drivers -->
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium mb-1" style="color: var(--ds-ink-muted)"
+                         x-text="i18n[lang].ml_drivers_label"></label>
+                  <input x-model="mlSettings.drivers" class="ds-input w-full text-sm"
+                         :placeholder="i18n[lang].ml_drivers_help" />
+                </div>
+              </div>
+
+              <!-- Generate button -->
+              <button @click="mlGenerate()"
+                      :disabled="mlState === 'generating'"
+                      class="ds-btn-primary w-full py-2 rounded-lg text-sm font-medium"
+                      :class="lang === 'ur' ? 'font-nastaliq' : ''"
+                      x-text="mlState === 'generating' ? i18n[lang].ml_generating : i18n[lang].ml_generate_btn">
+              </button>
+
+              <!-- Error -->
+              <div x-show="mlState === 'error'" class="text-sm px-3 py-2 rounded-lg" style="background: rgba(220,38,38,0.1); color: #dc2626">
+                <span x-text="errorMsg"></span>
+              </div>
+
+              <!-- Results -->
+              <div x-show="mlState === 'done' && mlResult" class="space-y-4">
+
+                <!-- ML Check scorecard -->
+                <div class="p-4 rounded-xl space-y-2" style="background: var(--ds-canvas); border: 1px solid var(--ds-border)">
+                  <h3 class="text-sm font-semibold" style="color: var(--ds-ink)" x-text="i18n[lang].ml_results_title"></h3>
+                  <p class="text-xs italic" style="color: var(--ds-ink-muted)" x-text="mlResult && mlResult.ml_check && mlResult.ml_check.label"></p>
+                  <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div>
+                      <div class="font-bold text-lg" style="color: var(--ds-ink)" x-text="mlResult && mlResult.ml_check ? mlResult.ml_check.score ?? '—' : '—'"></div>
+                      <div style="color: var(--ds-ink-muted)" x-text="(mlResult && mlResult.ml_check ? mlResult.ml_check.metric : '') + ' ' + i18n[lang].ml_score_label"></div>
+                    </div>
+                    <div>
+                      <div class="font-bold text-lg" style="color: var(--ds-ink)" x-text="mlResult && mlResult.ml_check ? mlResult.ml_check.baseline ?? '—' : '—'"></div>
+                      <div style="color: var(--ds-ink-muted)" x-text="i18n[lang].ml_baseline_label"></div>
+                    </div>
+                    <div>
+                      <div class="font-bold text-lg" :style="`color: ${mlResult && mlResult.ml_check && mlResult.ml_check.gap > 0 ? '#16a34a' : '#dc2626'}`"
+                           x-text="mlResult && mlResult.ml_check ? (mlResult.ml_check.gap >= 0 ? '+' : '') + mlResult.ml_check.gap : '—'"></div>
+                      <div style="color: var(--ds-ink-muted)" x-text="i18n[lang].ml_gap_label"></div>
+                    </div>
+                  </div>
+                  <div x-show="mlResult && mlResult.ml_check && mlResult.ml_check.warning"
+                       class="text-xs mt-1 px-2 py-1 rounded" style="background: rgba(234,179,8,0.1); color: #b45309"
+                       x-text="mlResult && mlResult.ml_check ? mlResult.ml_check.warning : ''"></div>
+                </div>
+
+                <!-- Downloads -->
+                <div class="flex flex-wrap gap-2">
+                  <a :href="`/api/runs/${mlResult && mlResult.run_id}/export/ml-train`"
+                     class="ds-btn-secondary text-xs px-3 py-1.5 rounded-md"
+                     x-text="i18n[lang].ml_dl_train"></a>
+                  <a :href="`/api/runs/${mlResult && mlResult.run_id}/export/ml-test`"
+                     class="ds-btn-secondary text-xs px-3 py-1.5 rounded-md"
+                     x-text="i18n[lang].ml_dl_test"></a>
+                </div>
+
+                <!-- Preview table -->
+                <div x-show="mlResult && mlResult.preview && mlResult.preview.length" class="overflow-x-auto rounded-lg" style="border: 1px solid var(--ds-border)">
+                  <table class="text-xs w-full">
+                    <thead>
+                      <tr style="background: var(--ds-canvas)">
+                        <template x-if="mlResult && mlResult.preview && mlResult.preview.length">
+                          <template x-for="col in Object.keys(mlResult.preview[0])" :key="col">
+                            <th class="px-3 py-2 text-left font-semibold truncate max-w-24"
+                                style="color: var(--ds-ink-muted); border-bottom: 1px solid var(--ds-border)"
+                                x-text="col"></th>
+                          </template>
+                        </template>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="(row, ri) in (mlResult ? mlResult.preview.slice(0, 20) : [])" :key="ri">
+                        <tr :style="ri % 2 === 0 ? '' : 'background: var(--ds-canvas)'">
+                          <template x-for="col in Object.keys(row)" :key="col">
+                            <td class="px-3 py-1.5 truncate max-w-32" style="color: var(--ds-ink)"
+                                x-text="row[col] ?? ''"></td>
+                          </template>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+
+              </div><!-- end mlResult -->
+            </div><!-- end ML Lab panel -->
+
+            <!-- Right: config panel — hidden in data_mode and ml_lab -->
+            <div x-show="currentModule !== 'data_mode' && currentModule !== 'ml_lab'" class="lg:w-60 shrink-0">
               <fieldset class="rounded-xl p-4 space-y-3" style="background: var(--ds-canvas); border: 1px solid var(--ds-border);">
                 <legend class="text-xs font-semibold uppercase tracking-widest px-0.5"
                         style="color: var(--ds-ink-muted);"

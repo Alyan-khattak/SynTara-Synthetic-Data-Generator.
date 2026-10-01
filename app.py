@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from api.error_handlers import generic_exception_handler, hackdata_exception_handler
-from api.routes import config, generate, health, profile, runs, schema, upload
+from api.routes import config, generate, health, ml_lab, profile, runs, schema, upload
 from hackdata.constants import api as api_const
 from hackdata.constants.spec import SPEC_VERSION
 from hackdata.exception.exception import HackDataException
@@ -45,6 +45,7 @@ app.include_router(runs.router)
 app.include_router(schema.router)
 app.include_router(upload.router)
 app.include_router(profile.router)
+app.include_router(ml_lab.router)
 
 # Mount frontend static directory if present
 frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
