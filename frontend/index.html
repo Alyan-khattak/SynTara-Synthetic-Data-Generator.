@@ -238,7 +238,7 @@
 
   <!-- Alpine state factory — must be defined before Alpine boots -->
   <script type="module">
-    import { getConfig, generateData, getRunScores, listRuns, saveRun, downloadExport, uploadDataset, regenerateData, downloadTableCsv, getRunSchema, generateDM, getProfile } from './js/api.js';
+    import { getConfig, generateData, getRunScores, listRuns, saveRun, downloadExport, uploadDataset, regenerateData, downloadTableCsv, getRunSchema, generateDM, getProfile, generateML } from './js/api.js';
     import { STRINGS } from './js/strings.js';
 
     // IMP: window.appState() is called by Alpine's x-data once the DOM is ready.
@@ -647,7 +647,6 @@
           this.mlUpload = null;
           this.mlSettings.upload_run_id = '';
           try {
-            const { uploadDataset } = await import('./js/api.js');
             const res = await uploadDataset(file);
             this.mlUpload = res;
             this.mlSettings.upload_run_id = res.run_id;
@@ -680,7 +679,6 @@
               seed:             s.seed ? parseInt(s.seed) : null,
               train_ratio:      parseFloat(s.train_ratio) || 0.8,
             };
-            const { generateML } = await import('./js/api.js');
             this.mlResult = await generateML(body);
             this.mlState = 'done';
             try { this.runs = (await listRuns()).runs || []; } catch (_) {}
@@ -1444,12 +1442,48 @@
                   <input type="file" id="ml-file-upload" accept=".csv"
                          @change="mlUploadFile($event)" class="sr-only" />
                 </label>
-                <!-- File info after upload -->
-                <div x-show="mlUpload && mlUploadState === 'ready'"
-                     class="flex flex-wrap gap-3 text-xs px-1" style="color: var(--ds-ink-muted)">
-                  <span>📄 <strong x-text="mlUpload && mlUpload.filename"></strong></span>
-                  <span x-text="mlUpload && mlUpload.n_rows + ' rows'"></span>
-                  <span x-text="mlUpload && mlUpload.n_cols + ' columns'"></span>
+                <!-- File info + column types after upload -->
+                <div x-show="mlUpload && mlUploadState === 'ready'" class="space-y-2">
+                  <div class="flex flex-wrap gap-3 text-xs px-1" style="color: var(--ds-ink-muted)">
+                    <span>📄 <strong x-text="mlUpload && mlUpload.filename"></strong></span>
+                    <span x-text="mlUpload && mlUpload.n_rows + ' rows'"></span>
+                    <span x-text="mlUpload && mlUpload.n_cols + ' columns'"></span>
+                  </div>
+                  <!-- Column chips — helps user fill Target column + Driver columns -->
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="[col, type] in Object.entries((mlUpload && mlUpload.col_types) || {})" :key="col">
+                      <span class="text-xs px-2 py-0.5 rounded-full cursor-pointer"
+                            style="background: var(--ds-border); color: var(--ds-ink-muted);"
+                            :title="'Click to set as target'"
+                            @click="mlSettings.target_col = col"
+                            x-text="col + ' (' + type + ')'"></span>
+                    </template>
+                  </div>
+                  <!-- Data preview table -->
+                  <div class="overflow-x-auto rounded-lg text-xs" style="border: 1px solid var(--ds-border); max-height: 160px; overflow-y: auto;">
+                    <table class="w-full">
+                      <thead>
+                        <tr style="background: var(--ds-canvas); position: sticky; top: 0;">
+                          <template x-for="col in Object.keys((mlUpload && mlUpload.col_types) || {})" :key="col">
+                            <th class="px-2 py-1.5 text-left font-semibold whitespace-nowrap"
+                                style="color: var(--ds-ink-muted); border-bottom: 1px solid var(--ds-border)"
+                                x-text="col"></th>
+                          </template>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="(row, ri) in (mlUpload ? mlUpload.uploaded_preview.slice(0,8) : [])" :key="ri">
+                          <tr :style="ri % 2 === 0 ? '' : 'background: var(--ds-canvas)'">
+                            <template x-for="col in Object.keys((mlUpload && mlUpload.col_types) || {})" :key="col">
+                              <td class="px-2 py-1 whitespace-nowrap truncate max-w-28"
+                                  style="color: var(--ds-ink)" x-text="row[col] ?? ''"></td>
+                            </template>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p class="text-xs" style="color: var(--ds-ink-muted)">Click a column chip to set it as target.</p>
                 </div>
                 <div x-show="mlUploadState === 'error'" class="text-xs px-1" style="color: #dc2626"
                      x-text="errorMsg"></div>
